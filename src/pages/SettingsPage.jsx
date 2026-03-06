@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Badge, Toast } from '../components/ui';
+import { Card, Button, Badge, Toast, Loading } from '../components/ui';
 import api from '../services/api';
 
 const SettingsPage = () => {
@@ -200,6 +200,11 @@ const SettingsPage = () => {
       minute: '2-digit'
     });
   };
+
+  // Loading state
+  if (loading) {
+    return <Loading message="Loading settings..." />;
+  }
 
   return (
     <div className="space-y-6">

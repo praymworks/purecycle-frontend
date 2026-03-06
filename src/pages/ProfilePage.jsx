@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { Card, Button, Input, Badge, Avatar } from '../components/ui';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Card, Button, Input, Badge, Avatar, Loading } from '../components/ui';
 import { AlertModal } from '../components/modals';
 import boholData from '../data/bohol_complete_barangays.json';
 import api from '../services/api';
 
 const ProfilePage = ({ user }) => {
+  const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState({
     fullname: user?.fullname || user?.name || '',
     email: user?.email || '',
@@ -13,6 +14,13 @@ const ProfilePage = ({ user }) => {
     barangay: user?.barangay || '',
     purok: user?.purok || '',
   });
+
+  // Set loading to false once user data is loaded
+  useEffect(() => {
+    if (user) {
+      setLoading(false);
+    }
+  }, [user]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -285,6 +293,11 @@ const ProfilePage = ({ user }) => {
       setUploadingImage(false);
     }
   };
+
+  // Loading state
+  if (loading) {
+    return <Loading message="Loading profile..." />;
+  }
 
   return (
     <div className="space-y-6">

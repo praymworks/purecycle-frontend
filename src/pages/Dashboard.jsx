@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge } from '../components/ui';
+import { Card, Badge, Loading } from '../components/ui';
 import {
   BarChart,
   Bar,
@@ -11,7 +11,6 @@ import {
   Cell,
 } from 'recharts';
 import { hasPermission } from '../utils/permissions';
-import { getDashboardAnalytics } from '../services/apiService';
 import api from '../services/api';
 
 const Dashboard = ({ user, onNavigate }) => {
@@ -52,23 +51,36 @@ const Dashboard = ({ user, onNavigate }) => {
         
         // Fetch dashboard analytics, waste watch ranking, and recent activity
         const [analyticsResponse, rankingResponse, activityResponse] = await Promise.all([
-          getDashboardAnalytics(period),
+          api.analytics.getDashboard({ period }),
           api.reports.getRanking(rankingParams),
           api.settings.getRecentActivity()
         ]);
         
-        if (analyticsResponse.success) {
+        // Handle analytics response
+        if (analyticsResponse && analyticsResponse.success && analyticsResponse.data) {
+          // console.log('📊 Dashboard - Analytics Response:', analyticsResponse.data);
           setDashboardData(analyticsResponse.data);
         } else {
-          setError('Failed to load dashboard data');
+          console.warn('⚠️ Dashboard - Analytics API failed:', analyticsResponse);
+          setError('Failed to load dashboard statistics');
         }
 
-        if (rankingResponse.success && rankingResponse.data.ranking) {
-          setWasteWatchData(rankingResponse.data.ranking);
+        // Handle ranking response
+        if (rankingResponse && rankingResponse.success && rankingResponse.data) {
+          const rankingData = rankingResponse.data.ranking || [];
+          // console.log('📊 Dashboard - Ranking Response:', rankingResponse.data);
+          setWasteWatchData(rankingData);
+        } else {
+          // console.warn('⚠️ Dashboard - Ranking API failed or returned no data:', rankingResponse);
+          setWasteWatchData([]);
         }
 
-        if (activityResponse.success && activityResponse.data) {
+        // Handle activity response
+        if (activityResponse && activityResponse.success && activityResponse.data) {
           setRecentActivities(activityResponse.data);
+        } else {
+          console.warn('⚠️ Dashboard - Activity API failed:', activityResponse);
+          setRecentActivities([]);
         }
       } catch (err) {
         console.error('Dashboard data fetch error:', err);
@@ -105,27 +117,9 @@ const Dashboard = ({ user, onNavigate }) => {
     }
   };
 
-  // Loading state - show skeleton instead of spinner
+  // Loading state
   if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        {/* Header skeleton */}
-        <div>
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        </div>
-        
-        {/* Stats skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-gray-200 h-32 rounded-lg"></div>
-          ))}
-        </div>
-        
-        {/* Chart skeleton */}
-        <div className="bg-gray-200 h-96 rounded-lg"></div>
-      </div>
-    );
+    return <Loading message="Loading dashboard data..." />;
   }
 
   // Error state
@@ -228,7 +222,10 @@ const Dashboard = ({ user, onNavigate }) => {
 
       {/* Waste Watch Chart - Permission Based */}
       {hasPermission(user, 'view_waste_watch_chart') && (
-        <Card title="Waste Watch: Report Ranking" subtitle="Reports submitted by area">
+        <Card 
+          title="Waste Watch: Report Ranking" 
+          subtitle="Reports submitted by area"
+        >
           {hasPermission(user, 'filter_waste_watch_chart') && (
             <div className="space-y-3 mb-4">
               {/* Time Filter Buttons */}
@@ -314,6 +311,7 @@ const Dashboard = ({ user, onNavigate }) => {
               )}
             </div>
           )}
+          
           {wasteReportRanking.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={wasteReportRanking}>
@@ -340,7 +338,8 @@ const Dashboard = ({ user, onNavigate }) => {
                 <svg className="w-16 h-16 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                <p>No report data available for this period</p>
+                <p className="font-medium text-gray-700 mb-1">No reports found</p>
+                <p className="text-sm text-gray-500">Try selecting a different date range</p>
               </div>
             </div>
           )}

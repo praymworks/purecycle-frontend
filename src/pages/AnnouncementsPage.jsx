@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Badge, Input, Select, Toast } from '../components/ui';
+import { Card, Table, Button, Badge, Input, Select, Toast, Loading, AccessDenied } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
 import api from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { hasPermission } from '../utils/permissions';
 
 const AnnouncementsPage = () => {
+  const { user: currentUser } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -332,14 +335,12 @@ const AnnouncementsPage = () => {
   ];
 
   if (loading && announcements.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading announcements...</p>
-        </div>
-      </div>
-    );
+    return <Loading message="Loading announcements..." />;
+  }
+
+  // Permission check
+  if (!hasPermission(currentUser, 'view_announcements_module')) {
+    return <AccessDenied message="You don't have permission to view Announcements." />;
   }
 
   return (
@@ -350,40 +351,51 @@ const AnnouncementsPage = () => {
           <h1 className="text-2xl font-bold text-gray-900">Announcements</h1>
           <p className="text-gray-600 mt-1">Create and manage system announcements</p>
         </div>
-        <Button variant="primary" onClick={handleCreate}>
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create Announcement
-        </Button>
+        {/* Create Announcement button - Permission: create_announcement */}
+        {hasPermission(currentUser, 'create_announcement') && (
+          <Button variant="primary" onClick={handleCreate}>
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Announcement
+          </Button>
+        )}
       </div>
 
-      {/* Filters */}
-      <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input
-            placeholder="Search announcements..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            options={[
-              { value: '', label: 'All Statuses' },
-              ...statusOptions
-            ]}
-          />
-          <Select
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value)}
-            options={[
-              { value: '', label: 'All Priorities' },
-              ...priorityOptions
-            ]}
-          />
-        </div>
-      </Card>
+      {/* Filters - Permissions: search_announcements, filter_announcements_by_status, filter_announcements_by_priority */}
+      {(hasPermission(currentUser, 'search_announcements') || hasPermission(currentUser, 'filter_announcements_by_status') || hasPermission(currentUser, 'filter_announcements_by_priority')) && (
+        <Card className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {hasPermission(currentUser, 'search_announcements') && (
+              <Input
+                placeholder="Search announcements..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            )}
+            {hasPermission(currentUser, 'filter_announcements_by_status') && (
+              <Select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                options={[
+                  { value: '', label: 'All Statuses' },
+                  ...statusOptions
+                ]}
+              />
+            )}
+            {hasPermission(currentUser, 'filter_announcements_by_priority') && (
+              <Select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                options={[
+                  { value: '', label: 'All Priorities' },
+                  ...priorityOptions
+                ]}
+              />
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Error Message */}
       {error && (
@@ -392,36 +404,50 @@ const AnnouncementsPage = () => {
         </div>
       )}
 
-      {/* Announcements Table */}
-      <Table
-        data={announcements}
-        columns={columns}
-        searchable={true}
-        searchPlaceholder="Search announcements..."
-        paginated={true}
-        pageSize={10}
-        pageSizeOptions={[10, 20, 50]}
-        actions={(row) => (
-          <>
-            <Button size="xs" variant="ghost" onClick={() => handleView(row)}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </Button>
-            <Button size="xs" variant="ghost" onClick={() => handleEdit(row)}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </Button>
-            <Button size="xs" variant="danger" onClick={() => handleDelete(row)}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </Button>
-          </>
-        )}
-      />
+      {/* Announcements Table - Permission: view_announcements_list */}
+      {hasPermission(currentUser, 'view_announcements_list') ? (
+        <Table
+          data={announcements}
+          columns={columns}
+          searchable={false}
+          paginated={true}
+          pageSize={10}
+          pageSizeOptions={[10, 20, 50]}
+          actions={(row) => (
+            <>
+              {/* View Details - Permission: view_announcement_details */}
+              {hasPermission(currentUser, 'view_announcement_details') && (
+                <Button size="xs" variant="ghost" onClick={() => handleView(row)} title="View Details">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </Button>
+              )}
+              {/* Edit - Permission: edit_announcement */}
+              {hasPermission(currentUser, 'edit_announcement') && (
+                <Button size="xs" variant="ghost" onClick={() => handleEdit(row)} title="Edit">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </Button>
+              )}
+              {/* Delete - Permission: delete_announcement */}
+              {hasPermission(currentUser, 'delete_announcement') && (
+                <Button size="xs" variant="danger" onClick={() => handleDelete(row)} title="Delete">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </Button>
+              )}
+            </>
+          )}
+        />
+      ) : (
+        <Card className="p-8 text-center">
+          <p className="text-gray-500">You don't have permission to view the announcements list.</p>
+        </Card>
+      )}
 
       {/* View Modal */}
       <ViewModal
@@ -484,7 +510,8 @@ const AnnouncementsPage = () => {
               </div>
             </div>
 
-            {selectedAnnouncement.attachments && selectedAnnouncement.attachments.length > 0 && (
+            {/* Attachments - Permission: view_announcement_attachments */}
+            {hasPermission(currentUser, 'view_announcement_attachments') && selectedAnnouncement.attachments && selectedAnnouncement.attachments.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Attachments</h3>
                 <div className="grid grid-cols-2 gap-3">

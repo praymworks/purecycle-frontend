@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Badge, Avatar, Toast } from '../components/ui';
+import { Card, Table, Button, Badge, Avatar, Toast, Loading, AccessDenied } from '../components/ui';
 import { AlertModal, ViewModal, FormModal } from '../components/modals';
 import { Input, Select } from '../components/ui';
 import boholData from '../data/bohol_complete_barangays.json';
 import api from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { hasPermission } from '../utils/permissions';
 
 // Filter to only show Trinidad
 const municipalityOptions = boholData.city_municipalities
@@ -26,6 +28,7 @@ const purokOptions = Array.from({ length: 7 }, (_, i) => ({
 }));
 
 const UsersPage = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -350,6 +353,16 @@ const UsersPage = () => {
     { value: 'staff', label: 'Staff' },
   ];
 
+  // Loading state
+  if (isLoading) {
+    return <Loading message="Loading users..." />;
+  }
+
+  // Permission check
+  if (!hasPermission(currentUser, 'view_user_management_module')) {
+    return <AccessDenied message="You don't have permission to view User Management." />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Toast Notification */}
@@ -367,33 +380,38 @@ const UsersPage = () => {
           <h1 className="text-2xl font-bold text-gray-900">Manage Accounts</h1>
           <p className="text-gray-600 mt-1">View and manage user accounts</p>
         </div>
-        <Button variant="primary" onClick={handleCreate}>
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-          </svg>
-          Add New User
-        </Button>
+        {/* Add New User button - Permission: add_new_user */}
+        {hasPermission(currentUser, 'add_new_user') && (
+          <Button variant="primary" onClick={handleCreate}>
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Add New User
+          </Button>
+        )}
       </div>
 
 
 
-      {/* Users Table */}
-      <Table
-        data={users}
-        columns={columns}
-        searchable={true}
-        searchPlaceholder="Search by name, email, ID..."
-        paginated={true}
-        pageSize={10}
-        pageSizeOptions={[10, 20, 50, 100]}
-        actions={(row) => (
+      {/* Users Table - Permission: view_users_list */}
+      {hasPermission(currentUser, 'view_users_list') ? (
+        <Table
+          data={users}
+          columns={columns}
+          searchable={hasPermission(currentUser, 'search_users')}
+          searchPlaceholder="Search by name, email, ID..."
+          paginated={true}
+          pageSize={10}
+          pageSizeOptions={[10, 20, 50, 100]}
+          actions={(row) => (
           <>
-            {/* View - Only for Purok Leader and Business Owner */}
-            {(row.role === 'purok_leader' || row.role === 'business_owner') && (
+            {/* View - Permission: view_user_details */}
+            {hasPermission(currentUser, 'view_user_details') && (row.role === 'purok_leader' || row.role === 'business_owner') && (
               <Button
                 size="xs"
                 variant="ghost"
                 onClick={() => handleView(row)}
+                title="View Details"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -402,12 +420,13 @@ const UsersPage = () => {
               </Button>
             )}
 
-            {/* Edit - Only for Admin and Staff */}
-            {(row.role === 'admin' || row.role === 'staff') && (
+            {/* Edit - Permission: edit_user */}
+            {hasPermission(currentUser, 'edit_user') && (row.role === 'admin' || row.role === 'staff') && (
               <Button
                 size="xs"
                 variant="ghost"
                 onClick={() => handleEdit(row)}
+                title="Edit User"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -415,39 +434,65 @@ const UsersPage = () => {
               </Button>
             )}
 
-            {/* Approve/Reject - Only for Pending */}
-            {row.status === 'pending' && (
-              <>
-                <Button
-                  size="xs"
-                  variant="success"
-                  onClick={() => handleApprove(row)}
-                >
-                  Approve
-                </Button>
-                <Button
-                  size="xs"
-                  variant="danger"
-                  onClick={() => handleReject(row)}
-                >
-                  Reject
-                </Button>
-              </>
+            {/* Approve - Permission: approve_user */}
+            {hasPermission(currentUser, 'approve_user') && row.status === 'pending' && (
+              <Button
+                size="xs"
+                variant="success"
+                onClick={() => handleApprove(row)}
+                title="Approve User"
+              >
+                Approve
+              </Button>
             )}
 
-            {/* Delete */}
-            <Button
-              size="xs"
-              variant="danger"
-              onClick={() => handleDelete(row)}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </Button>
+            {/* Reject - Permission: reject_user */}
+            {hasPermission(currentUser, 'reject_user') && row.status === 'pending' && (
+              <Button
+                size="xs"
+                variant="danger"
+                onClick={() => handleReject(row)}
+                title="Reject User"
+              >
+                Reject
+              </Button>
+            )}
+
+            {/* Reset Password - Permission: reset_user_password */}
+            {hasPermission(currentUser, 'reset_user_password') && (row.role === 'admin' || row.role === 'staff') && (
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => handleResetPassword(row)}
+                title="Reset Password"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </Button>
+            )}
+
+            {/* Delete - Permission: delete_user */}
+            {hasPermission(currentUser, 'delete_user') && (
+              <Button
+                size="xs"
+                variant="danger"
+                onClick={() => handleDelete(row)}
+                title="Delete User"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </Button>
+            )}
           </>
         )}
       />
+      ) : (
+        <Card className="p-8 text-center">
+          <p className="text-gray-500">You don't have permission to view the users list.</p>
+        </Card>
+      )}
 
       {/* View Modal */}
       <ViewModal
@@ -532,8 +577,8 @@ const UsersPage = () => {
               </>
             )}
 
-            {/* Documents Section */}
-            {(selectedUser.purok_leader || selectedUser.business_owner) && (
+            {/* Documents Section - Permission: view_user_documents */}
+            {hasPermission(currentUser, 'view_user_documents') && (selectedUser.purok_leader || selectedUser.business_owner) && (
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Documents</h3>
                 <div className="grid grid-cols-2 gap-4">

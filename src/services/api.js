@@ -455,6 +455,11 @@ const api = {
       const queryString = new URLSearchParams(params).toString();
       return apiRequest(`/export/analytics${queryString ? `?${queryString}` : ''}`);
     },
+    deleteFile: (filename) =>
+      apiRequest('/export/delete-file', {
+        method: 'DELETE',
+        body: JSON.stringify({ filename }),
+      }),
   },
 };
 

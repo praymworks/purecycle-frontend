@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Badge, Input, Toast } from '../components/ui';
+import { Card, Table, Button, Badge, Input, Toast, Loading, AccessDenied } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
 import api from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { hasPermission } from '../utils/permissions';
 
 const ReportsPage = () => {
+  const { user: currentUser } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -158,6 +161,16 @@ const ReportsPage = () => {
     }
   };
 
+  // Loading state
+  if (loading) {
+    return <Loading message="Loading reports..." />;
+  }
+
+  // Permission check
+  if (!hasPermission(currentUser, 'view_reports_management_module')) {
+    return <AccessDenied message="You don't have permission to view Reports Management." />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Toast Notification */}
@@ -178,57 +191,73 @@ const ReportsPage = () => {
       </div>
 
       
-      {/* Reports Table */}
-      <Table
-        data={reports}
-        columns={columns}
-        searchable={true}
-        searchPlaceholder="Search by reporter, type, location..."
-        paginated={true}
-        pageSize={10}
-        pageSizeOptions={[10, 20, 50, 100]}
-        actions={(row) => (
-          <>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => handleView(row)}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </Button>
-            {row.status === 'Pending' && (
-              <Button
-                size="xs"
-                variant="info"
-                onClick={() => handleStatusChange(row, 'In Progress')}
-              >
-                Start
-              </Button>
-            )}
-            {row.status === 'In Progress' && (
-              <Button
-                size="xs"
-                variant="success"
-                onClick={() => handleStatusChange(row, 'Resolved')}
-              >
-                Resolve
-              </Button>
-            )}
-            {row.status !== 'Rejected' && row.status !== 'Resolved' && (
-              <Button
-                size="xs"
-                variant="danger"
-                onClick={() => handleStatusChange(row, 'Rejected')}
-              >
-                Reject
-              </Button>
-            )}
-          </>
-        )}
-      />
+      {/* Reports Table - Permission: view_reports_list */}
+      {hasPermission(currentUser, 'view_reports_list') ? (
+        <Table
+          data={reports}
+          columns={columns}
+          searchable={hasPermission(currentUser, 'search_reports')}
+          searchPlaceholder="Search by reporter, type, location..."
+          paginated={true}
+          pageSize={10}
+          pageSizeOptions={[10, 20, 50, 100]}
+          actions={(row) => (
+            <>
+              {/* View Details - Permission: view_report_details */}
+              {hasPermission(currentUser, 'view_report_details') && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => handleView(row)}
+                  title="View Details"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </Button>
+              )}
+              {/* Start Processing - Permission: start_report_processing */}
+              {hasPermission(currentUser, 'start_report_processing') && row.status === 'Pending' && (
+                <Button
+                  size="xs"
+                  variant="info"
+                  onClick={() => handleStatusChange(row, 'In Progress')}
+                  title="Start Processing"
+                >
+                  Start
+                </Button>
+              )}
+              {/* Resolve Report - Permission: resolve_report */}
+              {hasPermission(currentUser, 'resolve_report') && row.status === 'In Progress' && (
+                <Button
+                  size="xs"
+                  variant="success"
+                  onClick={() => handleStatusChange(row, 'Resolved')}
+                  title="Resolve Report"
+                >
+                  Resolve
+                </Button>
+              )}
+              {/* Reject Report - Permission: reject_report */}
+              {hasPermission(currentUser, 'reject_report') && row.status !== 'Rejected' && row.status !== 'Resolved' && (
+                <Button
+                  size="xs"
+                  variant="danger"
+                  onClick={() => handleStatusChange(row, 'Rejected')}
+                  title="Reject Report"
+                >
+                  Reject
+                </Button>
+              )}
+            </>
+          )}
+        />
+      ) : (
+        <Card className="p-8 text-center">
+          <p className="text-gray-500">You don't have permission to view the reports list.</p>
+        </Card>
+      )}
 
       {/* View Modal */}
       <ViewModal
@@ -256,27 +285,30 @@ const ReportsPage = () => {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Reporter Information</h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Name</h3>
-                  <p className="text-base text-gray-900">{selectedReport.reporter_name}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Role</h3>
-                  <p className="text-base text-gray-900">{selectedReport.reporter_role}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Barangay</h3>
-                  <p className="text-base text-gray-900">{selectedReport.barangay}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Purok</h3>
-                  <p className="text-base text-gray-900">{selectedReport.purok}</p>
+            {/* Reporter Information - Permission: view_reporter_information */}
+            {hasPermission(currentUser, 'view_reporter_information') && (
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Reporter Information</h3>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Name</h3>
+                    <p className="text-base text-gray-900">{selectedReport.reporter_name}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Role</h3>
+                    <p className="text-base text-gray-900">{selectedReport.reporter_role}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Barangay</h3>
+                    <p className="text-base text-gray-900">{selectedReport.barangay}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Purok</h3>
+                    <p className="text-base text-gray-900">{selectedReport.purok}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Details</h3>
@@ -331,7 +363,8 @@ const ReportsPage = () => {
                 </div>
               )}
 
-              {selectedReport.staff_remarks && (
+              {/* Staff Remarks - Permission: view_staff_remarks */}
+              {hasPermission(currentUser, 'view_staff_remarks') && selectedReport.staff_remarks && (
                 <div className="mt-4">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Staff Remarks</h3>
                   <p className="text-base text-gray-900 bg-blue-50 p-4 rounded-lg">{selectedReport.staff_remarks}</p>

@@ -1,27 +1,36 @@
 import React, { useState } from 'react';
+import { hasPermission } from '../../utils/permissions';
 
 const SideNav = ({ user, currentPage, onPageChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // All menu items with role-based access (using role slugs from roles.json)
+  // All menu items with permission-based access
   const allMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'home', path: '/dashboard', roles: ['admin', 'staff', 'purok_leader', 'business_owner'] },
-    { id: 'users', label: 'Manage Accounts', icon: 'users', path: '/users', roles: ['admin'] },
-    { id: 'reports', label: 'View Reports', icon: 'clipboard', path: '/reports', roles: ['admin', 'staff'] },
-    { id: 'announcements', label: 'Announcements', icon: 'megaphone', path: '/announcements', roles: ['admin', 'staff'] },
-    { id: 'routes', label: 'Routes', icon: 'map', path: '/routes', roles: ['admin', 'staff'] },
-    { id: 'schedules', label: 'Schedules', icon: 'calendar', path: '/schedules', roles: ['admin', 'staff'] },
-    { id: 'analytics', label: 'Analytics', icon: 'chart', path: '/analytics', roles: ['admin'] },
-    { id: 'divider-1', label: '', icon: 'divider', path: '', roles: ['admin'] },
-    { id: 'roles', label: 'Roles', icon: 'shield', path: '/roles', roles: ['admin'] },
-    { id: 'permissions', label: 'Permissions', icon: 'key', path: '/permissions', roles: ['admin'] },
-    { id: 'settings', label: 'Settings', icon: 'cog', path: '/settings', roles: ['admin'] },
-    { id: 'divider-2', label: '', icon: 'divider', path: '', roles: ['admin', 'staff'] },
-    { id: 'profile', label: 'Profile', icon: 'user', path: '/profile', roles: ['admin', 'staff', 'purok_leader', 'business_owner'] },
+    { id: 'dashboard', label: 'Dashboard', icon: 'home', path: '/dashboard', permission: 'view_dashboard' },
+    { id: 'users', label: 'Manage Accounts', icon: 'users', path: '/users', permission: 'view_user_management_module' },
+    { id: 'reports', label: 'View Reports', icon: 'clipboard', path: '/reports', permission: 'view_reports_management_module' },
+    { id: 'announcements', label: 'Announcements', icon: 'megaphone', path: '/announcements', permission: 'view_announcements_module' },
+    { id: 'routes', label: 'Routes', icon: 'map', path: '/routes', permission: 'view_routes_module' },
+    { id: 'schedules', label: 'Schedules', icon: 'calendar', path: '/schedules', permission: 'view_schedules_module' },
+    { id: 'analytics', label: 'Analytics', icon: 'chart', path: '/analytics', permission: 'view_analytics_module' },
+    { id: 'divider-1', label: '', icon: 'divider', path: '', permission: null },
+    { id: 'roles', label: 'Roles', icon: 'shield', path: '/roles', permission: 'view_roles_management_module' },
+    { id: 'permissions', label: 'Permissions', icon: 'key', path: '/permissions', permission: 'view_permissions_management_module' },
+    { id: 'settings', label: 'Settings', icon: 'cog', path: '/settings', permission: 'view_system_settings_module' },
+    { id: 'divider-2', label: '', icon: 'divider', path: '', permission: null },
+    { id: 'profile', label: 'Profile', icon: 'user', path: '/profile', permission: 'view_profile' },
   ];
 
-  // Filter menu items based on user roleSlug (matches roles.json slug)
-  const menuItems = allMenuItems.filter(item => item.roles.includes(user?.roleSlug || 'admin'));
+  // Filter menu items based on user permissions
+  const menuItems = allMenuItems.filter(item => {
+    // Dividers should be shown if any item in the section is visible
+    if (item.icon === 'divider') {
+      return true; // We'll handle divider visibility later
+    }
+    
+    // Check if user has permission to access this item
+    return item.permission ? hasPermission(user, item.permission) : false;
+  });
 
   const icons = {
     home: (

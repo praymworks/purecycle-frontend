@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button, Toast } from '../components/ui';
+import { Card, Badge, Button, Toast, Loading } from '../components/ui';
+import Modal from '../components/modals/Modal';
 import {
   BarChart,
   Bar,
@@ -15,13 +16,25 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { users, reports } from '../data';
 import api from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { hasPermission } from '../utils/permissions';
+import { AccessDenied } from '../components/ui';
 
 const AnalyticsPage = () => {
+  const { user: currentUser } = useAuth();
   const [timeFilter, setTimeFilter] = useState('This Month');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', variant: 'success' });
+
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportType, setExportType] = useState(''); // 'collections' or 'reports'
+  const today = new Date().toISOString().split('T')[0];
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const [exportStartDate, setExportStartDate] = useState(firstDayOfMonth);
+  const [exportEndDate, setExportEndDate] = useState(today);
+  const [exporting, setExporting] = useState(false);
   
   // Analytics data from backend
   const [overview, setOverview] = useState(null);
@@ -29,6 +42,57 @@ const AnalyticsPage = () => {
   const [routePerformance, setRoutePerformance] = useState([]);
   const [reportAnalytics, setReportAnalytics] = useState(null);
   const [userActivity, setUserActivity] = useState(null);
+  const [userStats, setUserStats] = useState({ totalUsers: 0, businessmen: 0, purokLeaders: 0 });
+  const [reportStats, setReportStats] = useState({ total: 0, pending: 0, inProgress: 0, resolved: 0 });
+  const [wasteReportRanking, setWasteReportRanking] = useState([]);
+  const [activeReporters, setActiveReporters] = useState([]);
+  const [monthlyReports, setMonthlyReports] = useState([]);
+
+  // Handle Export
+  const handleExport = async () => {
+    if (!exportType) {
+      setToast({ show: true, message: 'Please select an export type.', variant: 'error' });
+      return;
+    }
+    try {
+      setExporting(true);
+      const params = { start_date: exportStartDate, end_date: exportEndDate };
+      const res = exportType === 'collections'
+        ? await api.exports.collections(params)
+        : await api.exports.reports(params);
+
+      const fileUrl = res?.data?.url;
+      const filename = res?.data?.filename;
+      if (fileUrl && filename) {
+        // Auto-download the file
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setToast({ show: true, message: res.message || 'Export successful!', variant: 'success' });
+        setShowExportModal(false);
+
+        // Delete file from server after download is triggered
+        setTimeout(async () => {
+          try {
+            await api.exports.deleteFile(filename);
+          } catch (err) {
+            console.warn('Could not delete export file from server:', err);
+          }
+        }, 3000); // 3 second delay to ensure browser has started downloading
+      } else {
+        setToast({ show: true, message: 'Export failed: No file URL returned.', variant: 'error' });
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setToast({ show: true, message: error.message || 'Export failed. Please try again.', variant: 'error' });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Load analytics data from backend
   const loadAnalytics = async () => {
@@ -40,24 +104,63 @@ const AnalyticsPage = () => {
                      timeFilter === 'This Month' ? 'month' : 'year';
       
       // Fetch all analytics data
-      const [overviewRes, collectionRes, routeRes, reportRes, userRes] = await Promise.all([
+      const [overviewRes, collectionRes, routeRes, reportRes, userRes, usersListRes, reportsListRes, rankingRes] = await Promise.all([
         api.analytics.getOverview(),
         api.analytics.getCollectionStats({ period }),
         api.analytics.getRoutePerformance(),
         api.analytics.getReportAnalytics({ period }),
         api.analytics.getUserActivity(),
+        api.users.getAll(),
+        api.reports.getStatistics(),
+        api.reports.getRanking({ period, group_by: 'purok' }),
       ]);
 
-
-   
-      
-      
       // Set data
       setOverview(overviewRes.data || overviewRes);
       setCollectionStats(collectionRes.data || collectionRes);
       setRoutePerformance(routeRes.data || routeRes);
-      setReportAnalytics(reportRes.data || reportRes);
       setUserActivity(userRes.data || userRes);
+
+      // Set report analytics and build chart data from it
+      const reportAnalyticsData = reportRes.data || reportRes;
+      setReportAnalytics(reportAnalyticsData);
+
+      // --- Waste Watch Bar Chart (from /reports/ranking) ---
+      const rankingData = rankingRes?.data?.ranking || [];
+      setWasteReportRanking(rankingData);
+
+      // --- Most Active Reporters Pie Chart (from report analytics by_reporter_role) ---
+      const byRole = reportAnalyticsData?.by_reporter_role || {};
+      const purokLeaderCount = byRole.purok_leader || 0;
+      const businessOwnerCount = byRole.business_owner || 0;
+      const totalRoleCount = purokLeaderCount + businessOwnerCount || 1;
+      setActiveReporters([
+        { name: 'Purok Leaders', value: Math.round((purokLeaderCount / totalRoleCount) * 100), color: '#22c55e' },
+        { name: 'Business Owners', value: Math.round((businessOwnerCount / totalRoleCount) * 100), color: '#86efac' },
+      ]);
+
+      // --- Monthly Reports Line Chart (from report analytics by_reporter_role per period) ---
+      // We use available data to build a simple current-period data point
+      setMonthlyReports([
+        { month: 'This Period', purokLeaders: purokLeaderCount, business: businessOwnerCount },
+      ]);
+
+      // Compute user stats from users list (returns plain array)
+      const usersList = Array.isArray(usersListRes.data) ? usersListRes.data : (Array.isArray(usersListRes) ? usersListRes : []);
+      setUserStats({
+        totalUsers: usersList.length,
+        businessmen: usersList.filter(u => u.role === 'business_owner').length,
+        purokLeaders: usersList.filter(u => u.role === 'purok_leader').length,
+      });
+
+      // Use report statistics endpoint (already computed counts from backend)
+      const reportStatsData = reportsListRes.data || reportsListRes || {};
+      setReportStats({
+        total: reportStatsData.total || 0,
+        pending: reportStatsData.by_status?.pending || 0,
+        inProgress: reportStatsData.by_status?.in_progress || 0,
+        resolved: reportStatsData.by_status?.resolved || 0,
+      });
       
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -72,53 +175,13 @@ const AnalyticsPage = () => {
     loadAnalytics();
   }, [timeFilter]);
 
-  // Waste Watch Report Ranking Data
-  const wasteReportRanking = [
-    { area: 'YL', reports: 15, color: '#f87171' },
-    { area: 'Carenderia', reports: 13, color: '#fbbf24' },
-    { area: 'Purok 1', reports: 12, color: '#fbbf24' },
-    { area: 'Purok 3', reports: 10, color: '#fde047' },
-    { area: 'Shoppers', reports: 8, color: '#fde047' },
-    { area: 'Purok 2', reports: 6, color: '#93c5fd' },
-    { area: 'Purok 5', reports: 5, color: '#86efac' },
-  ];
+  if (loading) {
+    return <Loading message="Loading analytics data..." />;
+  }
 
-  console.log(overview);
-  
-
-  // Infographics Reports (Line Chart Data)
-  const monthlyReports = [
-    { month: 'June', purokLeaders: 12, business: 8 },
-    { month: 'July', purokLeaders: 18, business: 15 },
-    { month: 'Aug', purokLeaders: 8, business: 20 },
-    { month: 'Sept', purokLeaders: 15, business: 12 },
-    { month: 'Oct', purokLeaders: 5, business: 18 },
-    { month: 'Nov', purokLeaders: 22, business: 25 },
-  ];
-
-  // Most Active Reporters (Pie Chart Data)
-  const activeReporters = [
-    { name: 'Purok 5', value: 35, color: '#22c55e' },
-    { name: 'Shoppers', value: 40, color: '#86efac' },
-    { name: 'Purok 1', value: 25, color: '#dcfce7' },
-  ];
-
-  // User Statistics
-  const userStats = {
-    totalUsers: users.length,
-    businessmen: users.filter(u => u.role === 'business_owner').length,
-    purokLeaders: users.filter(u => u.role === 'purok_leader').length,
-  };
-
-  
-
-  // Report Statistics  
-  const reportStats = {
-    total: reports.length,
-    pending: reports.filter(r => r.status === 'Pending').length,
-    inProgress: reports.filter(r => r.status === 'In Progress').length,
-    resolved: reports.filter(r => r.status === 'Resolved').length,
-  };
+  if (!hasPermission(currentUser, 'view_analytics_module')) {
+    return <AccessDenied />;
+  }
 
   return (
     <div className="space-y-6">
@@ -129,12 +192,15 @@ const AnalyticsPage = () => {
           <p className="text-gray-600 mt-1">System statistics and performance metrics</p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button variant="outline" size="xs">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Export Report
-          </Button>
+          {hasPermission(currentUser, 'export_analytics_report') && (
+            <Button variant="outline" size="xs" onClick={() => { setExportType(''); setShowExportModal(true); }}>
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export Report
+            </Button>
+          )}
+          {hasPermission(currentUser, 'configure_analytics_settings') && (
           <Button variant="primary" size="xs">
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -142,10 +208,12 @@ const AnalyticsPage = () => {
             </svg>
             Settings
           </Button>
+          )}
         </div>
       </div>
 
       {/* Stats Cards */}
+      {hasPermission(currentUser, 'view_statistics_cards') && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card padding={false} className="bg-gradient-to-br from-blue-500 to-blue-600">
           <div className="p-6 text-white">
@@ -238,8 +306,9 @@ const AnalyticsPage = () => {
           </div>
         </Card>
       </div>
+      )}
 
-      {/* Charts Row 1 */}
+      {/* Charts Row 1 — Waste Watch (always visible if module accessible) + Most Active Reporters */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Waste Watch Report Ranking */}
         <Card title="Waste Watch: Report Ranking" subtitle="Reports by area" className="lg:col-span-2">
@@ -282,6 +351,7 @@ const AnalyticsPage = () => {
         </Card>
 
         {/* Most Active Reporters */}
+        {hasPermission(currentUser, 'view_active_reporters_chart') && (
         <Card title="Most Active Reporters" subtitle="By area distribution">
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -314,9 +384,11 @@ const AnalyticsPage = () => {
             ))}
           </div>
         </Card>
+        )}
       </div>
 
       {/* Infographics Reports */}
+      {hasPermission(currentUser, 'view_infographics_chart') && (
       <Card title="Infographics Reports" subtitle="Monthly report trends">
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={monthlyReports}>
@@ -352,8 +424,10 @@ const AnalyticsPage = () => {
           </LineChart>
         </ResponsiveContainer>
       </Card>
+      )}
 
       {/* Quick Stats Grid */}
+      {hasPermission(currentUser, 'view_quick_stats') && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <div className="flex items-center space-x-4">
@@ -411,6 +485,7 @@ const AnalyticsPage = () => {
           </div>
         </Card>
       </div>
+      )}
 
       {/* Toast Notifications */}
       <Toast
@@ -419,6 +494,110 @@ const AnalyticsPage = () => {
         variant={toast.variant}
         onClose={() => setToast({ ...toast, show: false })}
       />
+
+      {/* Export Modal */}
+      <Modal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Report"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setShowExportModal(false)} disabled={exporting}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleExport} disabled={exporting || !exportType}>
+              {exporting ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Exporting...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download
+                </span>
+              )}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          {/* Export Type Selection */}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-3">Select what to export:</p>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Collections Option */}
+              <button
+                onClick={() => setExportType('collections')}
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                  exportType === 'collections'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                <span className="text-sm font-semibold">Collections</span>
+                <span className="text-xs mt-1 text-center opacity-70">Collection routes & schedules</span>
+              </button>
+
+              {/* Reports Option */}
+              <button
+                onClick={() => setExportType('reports')}
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                  exportType === 'reports'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="text-sm font-semibold">Reports</span>
+                <span className="text-xs mt-1 text-center opacity-70">Waste reports summary</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-3">Select date range:</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  max={exportEndDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  min={exportStartDate}
+                  max={today}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Default range: start of current month to today.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

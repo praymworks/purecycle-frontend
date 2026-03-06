@@ -255,6 +255,16 @@ export const initializeAuth = async () => {
   }
 };
 
+/**
+ * Update user data in localStorage
+ * @param {Object} userData - Updated user data
+ */
+export const updateUserData = (userData) => {
+  if (userData) {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+  }
+};
+
 export default {
   login,
   logout,
@@ -268,4 +278,5 @@ export default {
   isStaff,
   isAdminOrStaff,
   initializeAuth,
+  updateUserData,
 };

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Badge } from '../components/ui';
+import { Card, Table, Button, Badge, Loading, AccessDenied } from '../components/ui';
+import { useAuth } from '../hooks/useAuth';
+import { hasPermission } from '../utils/permissions';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
 import { Input } from '../components/ui';
 import api from '../services/api';
 import { Toast } from '../components/ui';
 
 const RolesPage = () => {
+  const { user: currentUser } = useAuth();
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -285,6 +288,16 @@ const RolesPage = () => {
     acc[perm.module].push(perm);
     return acc;
   }, {});
+
+  // Loading state
+  if (loading) {
+    return <Loading message="Loading roles..." />;
+  }
+
+  // Permission check
+  if (!hasPermission(currentUser, 'view_roles_management_module')) {
+    return <AccessDenied message="You don't have permission to view Roles Management." />;
+  }
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button, Input } from '../components/ui';
+import { Card, Badge, Button, Input, Loading } from '../components/ui';
 import { AlertModal } from '../components/modals';
 import api from '../services/api';
 
@@ -226,16 +226,7 @@ const NotificationsPage = () => {
 
   // Loading state
   if (loading) {
-    return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading notifications...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <Loading message="Loading notifications..." />;
   }
 
   // Error state

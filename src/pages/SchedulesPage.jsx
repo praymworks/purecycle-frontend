@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Button, Badge, Select, Input, Toast } from '../components/ui';
+import { Card, Button, Badge, Select, Input, Toast, Loading, AccessDenied } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
-import { schedules as schedulesData, routes as routesData } from '../data';
 import api from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { hasPermission } from '../utils/permissions';
 
 const SchedulesPage = () => {
+  const { user: currentUser } = useAuth();
   const [schedules, setSchedules] = useState([]);
+  const [routes, setRoutes] = useState([]);
   const [selectedDay, setSelectedDay] = useState('Monday');
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, 1 = next week, -1 = previous week
   const [selectedRoute, setSelectedRoute] = useState(null);
@@ -20,7 +23,7 @@ const SchedulesPage = () => {
   const [statusCancelReason, setStatusCancelReason] = useState('');
   const [statusNotes, setStatusNotes] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [loadingSchedules, setLoadingSchedules] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', variant: 'success' });
   // Load schedules from backend API
   const loadSchedules = async () => {
@@ -91,16 +94,46 @@ const SchedulesPage = () => {
     } catch (error) {
       console.error('Error loading schedules:', error);
       setToast({ show: true, message: 'Failed to load schedules', variant: 'error' });
-      // Fallback to local data
-      setSchedules(schedulesData || []);
     } finally {
       setLoadingSchedules(false);
     }
   };
 
-  // Load schedules on component mount
+  // Load routes from backend API
+  const loadRoutes = async () => {
+    try {
+      const response = await api.routes.getAll();
+      let fetchedRoutes = [];
+      
+      if (Array.isArray(response)) {
+        fetchedRoutes = response;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        fetchedRoutes = response.data.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        fetchedRoutes = response.data;
+      }
+      
+      // Transform backend data
+      const transformedRoutes = fetchedRoutes.map(route => ({
+        id: route.route_id || route.id,
+        route_id: route.route_id,
+        name: route.name,
+        waypoints: route.waypoints || [],
+        distance: route.distance,
+        status: route.status
+      }));
+      
+      setRoutes(transformedRoutes);
+    } catch (error) {
+      console.error('Error loading routes:', error);
+      setRoutes([]);
+    }
+  };
+
+  // Load schedules and routes on component mount
   useEffect(() => {
     loadSchedules();
+    loadRoutes();
   }, []);
   const [viewingSchedule, setViewingSchedule] = useState(null);
   const [showScheduleDetailsModal, setShowScheduleDetailsModal] = useState(false);
@@ -489,7 +522,7 @@ const SchedulesPage = () => {
       
       // Helper function to get route stops with proper status mapping
       const getRouteStops = (routeId) => {
-        const selectedRoute = routesData.find(r => r.id === routeId);
+        const selectedRoute = routes.find(r => r.id === routeId);
         if (!selectedRoute) return [];
         
         const locations = createRouteLocations(selectedRoute, bulkCreateData.startTime);
@@ -597,27 +630,66 @@ const SchedulesPage = () => {
       }
     }
     
-    // Create schedules via API
+    // Create schedules via API - with duplicate detection
     let createdCount = 0;
+    let skippedCount = 0;
+    let failedCount = 0;
+    const skippedDates = [];
+    
     for (const scheduleData of schedulesToCreate) {
       try {
+        // Check if schedule already exists for this date
+        const existingSchedule = schedules.find(s => 
+          s.date === scheduleData.date && 
+          s.routeId === scheduleData.route_id
+        );
+        
+        if (existingSchedule) {
+          skippedCount++;
+          skippedDates.push(scheduleData.date);
+          console.log(`Skipping duplicate schedule for ${scheduleData.date}`);
+          continue; // Skip this schedule
+        }
+        
         const response = await api.schedules.create(scheduleData);
         if (response.success) {
           createdCount++;
+        } else if (response.duplicate) {
+          // Backend detected duplicate
+          skippedCount++;
+          skippedDates.push(scheduleData.date);
+        } else {
+          failedCount++;
         }
       } catch (error) {
         console.error('Error creating schedule:', error);
+        // Check if error is due to duplicate (409 status)
+        if (error.response && error.response.status === 409) {
+          skippedCount++;
+          skippedDates.push(scheduleData.date);
+        } else {
+          failedCount++;
+        }
       }
     }
     
     // Reload all schedules
     await loadSchedules();
     
-    if (createdCount > 0) {
-      setToast({ show: true, message: `${createdCount} schedule(s) created successfully`, variant: 'success' });
+    // Show appropriate message
+    let message = '';
+    if (createdCount > 0 && skippedCount > 0) {
+      message = `${createdCount} schedule(s) created successfully. ${skippedCount} duplicate(s) skipped.`;
+    } else if (createdCount > 0) {
+      message = `${createdCount} schedule(s) created successfully`;
+    } else if (skippedCount > 0) {
+      message = `All ${skippedCount} schedule(s) already exist. No new schedules created.`;
     } else {
-      setToast({ show: true, message: 'Failed to create schedules', variant: 'error' });
+      message = 'Failed to create schedules';
     }
+    
+    const variant = createdCount > 0 ? 'success' : (skippedCount > 0 ? 'warning' : 'error');
+    setToast({ show: true, message, variant });
     
     } catch (error) {
       console.error('Error in bulk create:', error);
@@ -644,6 +716,16 @@ const SchedulesPage = () => {
       startTime: '06:00'
     });
   };
+
+  // Loading state
+  if (loadingSchedules) {
+    return <Loading message="Loading schedules..." />;
+  }
+
+  // Permission check
+  if (!hasPermission(currentUser, 'view_schedules_module')) {
+    return <AccessDenied message="You don't have permission to view Schedules." />;
+  }
 
   return (
     <div className="space-y-6">
@@ -1265,7 +1347,7 @@ const SchedulesPage = () => {
               </div>
               <div>
                 <h4 className="text-sm font-medium text-gray-500 mb-1">Start Time</h4>
-                <p className="text-lg font-semibold text-gray-900">{viewingschedule.stops?.[0]?.time || 'N/A'}</p>
+                <p className="text-lg font-semibold text-gray-900">{viewingSchedule.stops?.[0]?.time || 'N/A'}</p>
               </div>
             </div>
 
@@ -1431,7 +1513,7 @@ const SchedulesPage = () => {
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <p className="text-sm font-medium text-gray-700 mb-2">Preview:</p>
                 <p className="text-sm text-gray-600">
-                  {routesData.find(r => r.id === editData.routeId)?.waypoints.length} stops will be scheduled starting at <strong>{editData.startTime}</strong>
+                  {routes.find(r => r.id === editData.routeId)?.waypoints?.length || 0} stops will be scheduled starting at <strong>{editData.startTime}</strong>
                 </p>
               </div>
             )}
@@ -1730,9 +1812,9 @@ const SchedulesPage = () => {
                 required
               >
                 <option value="">Choose a route...</option>
-                {routesData.map((route) => (
+                {routes.map((route) => (
                   <option key={route.id} value={route.id}>
-                    {route.name} ({route.waypoints.length} waypoints - {route.distance})
+                    {route.name} ({route.waypoints?.length || 0} waypoints - {route.distance})
                   </option>
                 ))}
               </select>
@@ -1761,9 +1843,9 @@ const SchedulesPage = () => {
                     required
                   >
                     <option value="">Choose route for {day}...</option>
-                    {routesData.map((route) => (
+                    {routes.map((route) => (
                       <option key={route.id} value={route.id}>
-                        {route.name} ({route.waypoints.length} waypoints - {route.distance})
+                        {route.name} ({route.waypoints?.length || 0} waypoints - {route.distance})
                       </option>
                     ))}
                   </select>

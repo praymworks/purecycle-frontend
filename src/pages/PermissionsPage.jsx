@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Badge } from '../components/ui';
+import { Card, Table, Button, Badge, Loading } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
 import { Input, Toast } from '../components/ui';
 import api from '../services/api';
@@ -530,6 +530,11 @@ const PermissionsPage = () => {
       className: `w-6 h-6 ${colorClass} transition-colors`
     });
   };
+
+  // Loading state
+  if (loading) {
+    return <Loading message="Loading permissions..." />;
+  }
 
   return (
     <div className="space-y-6">

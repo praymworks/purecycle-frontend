@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import { Card, Button, Badge, Input, Select, Toast } from '../components/ui';
+import { Card, Button, Badge, Input, Select, Toast, Loading, AccessDenied } from '../components/ui';
 import { FormModal, AlertModal, ViewModal } from '../components/modals';
 import api from '../services/api';
-import { routes as routesData } from '../data';
+import { useAuth } from '../hooks/useAuth';
+import { hasPermission } from '../utils/permissions';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -119,6 +120,7 @@ const mapStyles = [
 ];
 
 const RoutesPage = () => {
+  const { user: currentUser } = useAuth();
   const [routes, setRoutes] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -425,6 +427,16 @@ const RoutesPage = () => {
     }
   };
   
+  // Loading state
+  if (loadingRoutes) {
+    return <Loading message="Loading routes..." />;
+  }
+
+  // Permission check
+  if (!hasPermission(currentUser, 'view_routes_module')) {
+    return <AccessDenied message="You don't have permission to view Routes Management." />;
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
