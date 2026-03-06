@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Badge } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
-import { permissions, roles } from '../data';
-import { Input } from '../components/ui';
+import { Input, Toast } from '../components/ui';
+import api from '../services/api';
 
 // Icon definitions for permission icons
 const PERMISSION_ICONS = {
@@ -113,6 +113,9 @@ const PERMISSION_ICONS = {
 };
 
 const PermissionsPage = () => {
+  const [permissions, setPermissions] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedPermission, setSelectedPermission] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -121,10 +124,71 @@ const PermissionsPage = () => {
   const [formData, setFormData] = useState({ name: '', slug: '', module: '', description: '', icon: '' });
   const [selectedModule, setSelectedModule] = useState(null);
   const [showModuleModal, setShowModuleModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('modules'); // 'modules' or 'all'
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusPermission, setStatusPermission] = useState(null);
   const [permissionStatuses, setPermissionStatuses] = useState({});
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  // Fetch permissions and roles from API
+  useEffect(() => {
+    fetchPermissions();
+    fetchRoles();
+  }, []);
+
+  const fetchPermissions = async () => {
+    try {
+      setLoading(true);
+      const response = await api.permissions.getAll();
+      if (response.success) {
+        // Transform API response to match frontend structure
+        const transformedPermissions = response.data.map(perm => ({
+          id: perm.id,
+          name: perm.name,
+          slug: perm.slug,
+          module: perm.module,
+          description: perm.description,
+          status: perm.status || 'active',
+          icon: perm.icon || ''
+        }));
+        setPermissions(transformedPermissions);
+        
+        // Initialize permission statuses
+        const statuses = {};
+        transformedPermissions.forEach(p => {
+          statuses[p.id] = p.status;
+        });
+        setPermissionStatuses(statuses);
+      }
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+      showToast('Failed to load permissions', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const response = await api.roles.getAll();
+      if (response.success) {
+        // Transform API response to match frontend structure
+        const transformedRoles = response.data.map(role => ({
+          id: role.id,
+          name: role.name,
+          slug: role.slug,
+          permissions: role.permissions ? role.permissions.map(p => p.slug) : []
+        }));
+        setRoles(transformedRoles);
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    }
+  };
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
 
   const columns = [
     {
@@ -197,14 +261,24 @@ const PermissionsPage = () => {
     setShowStatusModal(true);
   };
 
-  const handleStatusChange = (status) => {
+  const handleStatusChange = async (status) => {
     if (statusPermission) {
-      setPermissionStatuses(prev => ({
-        ...prev,
-        [statusPermission.id]: status
-      }));
-      setShowStatusModal(false);
-      setStatusPermission(null);
+      try {
+        const response = await api.permissions.update(statusPermission.id, { status });
+        if (response.success) {
+          setPermissionStatuses(prev => ({
+            ...prev,
+            [statusPermission.id]: status
+          }));
+          showToast('Permission status updated successfully', 'success');
+          setShowStatusModal(false);
+          setStatusPermission(null);
+          fetchPermissions(); // Refresh the list
+        }
+      } catch (error) {
+        console.error('Error updating permission status:', error);
+        showToast(error.message || 'Failed to update permission status', 'error');
+      }
     }
   };
 
@@ -279,21 +353,65 @@ const PermissionsPage = () => {
     }
   };
 
-  const handleSubmitCreate = (e) => {
+  const handleSubmitCreate = async (e) => {
     e.preventDefault();
-    console.log('Creating permission:', formData);
-    setShowCreateModal(false);
+    try {
+      const permissionData = {
+        name: formData.name,
+        slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, '_'),
+        module: formData.module,
+        description: formData.description,
+        icon: formData.icon,
+        status: 'active'
+      };
+
+      const response = await api.permissions.create(permissionData);
+      if (response.success) {
+        showToast('Permission created successfully', 'success');
+        setShowCreateModal(false);
+        fetchPermissions(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error creating permission:', error);
+      showToast(error.message || 'Failed to create permission', 'error');
+    }
   };
 
-  const handleSubmitEdit = (e) => {
+  const handleSubmitEdit = async (e) => {
     e.preventDefault();
-    console.log('Updating permission:', selectedPermission.id, formData);
-    setShowEditModal(false);
+    try {
+      const permissionData = {
+        name: formData.name,
+        slug: formData.slug,
+        module: formData.module,
+        description: formData.description,
+        icon: formData.icon
+      };
+
+      const response = await api.permissions.update(selectedPermission.id, permissionData);
+      if (response.success) {
+        showToast('Permission updated successfully', 'success');
+        setShowEditModal(false);
+        fetchPermissions(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating permission:', error);
+      showToast(error.message || 'Failed to update permission', 'error');
+    }
   };
 
-  const confirmDelete = () => {
-    console.log('Deleting permission:', selectedPermission);
-    setShowDeleteModal(false);
+  const confirmDelete = async () => {
+    try {
+      const response = await api.permissions.delete(selectedPermission.id);
+      if (response.success) {
+        showToast('Permission deleted successfully', 'success');
+        setShowDeleteModal(false);
+        fetchPermissions(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error deleting permission:', error);
+      showToast(error.message || 'Failed to delete permission', 'error');
+    }
   };
 
   // Group permissions by module
@@ -429,126 +547,50 @@ const PermissionsPage = () => {
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('modules')}
-            className={`
-              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${activeTab === 'modules'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }
-            `}
-          >
-            <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-              <span>Permissions by Module</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`
-              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${activeTab === 'all'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }
-            `}
-          >
-            <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              <span>All Permissions</span>
-            </div>
-          </button>
-        </nav>
-      </div>
-
       {/* Permissions by Module - Card Grid */}
-      {activeTab === 'modules' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {Object.entries(groupedPermissions).map(([module, perms]) => {
-          const handleViewModule = () => {
-            setSelectedModule({ name: module, permissions: perms });
-            setShowModuleModal(true);
-          };
-          
-          return (
-            <button
-              key={module}
-              onClick={handleViewModule}
-              className="bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-primary-500 hover:shadow-lg transition-all duration-200 text-left group"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-primary-100 transition-colors">
-                  {getModuleStatusIcon(module, perms)}
-                </div>
-                <svg 
-                  className="w-5 h-5 text-gray-400 group-hover:text-primary-600 transition-colors"
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {Object.entries(groupedPermissions).map(([module, perms]) => {
+        const handleViewModule = () => {
+          setSelectedModule({ name: module, permissions: perms });
+          setShowModuleModal(true);
+        };
+        
+        return (
+          <button
+            key={module}
+            onClick={handleViewModule}
+            className="bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-primary-500 hover:shadow-lg transition-all duration-200 text-left group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-primary-100 transition-colors">
+                {getModuleStatusIcon(module, perms)}
               </div>
-              
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
-                {module}
-              </h3>
-              
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  {perms.length} permission{perms.length !== 1 ? 's' : ''}
-                </p>
-                <span className="text-xs text-primary-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  View all →
-                </span>
-              </div>
-            </button>
-          );
-        })}
-        </div>
-      )}
-
-      {/* All Permissions Table */}
-      {activeTab === 'all' && (
-        <Card title="All Permissions" subtitle="Complete list of system permissions">
-          <Table
-            data={permissions}
-            columns={columns}
-            searchable={true}
-            searchPlaceholder="Search permissions..."
-            paginated={true}
-            pageSize={10}
-            actions={(row) => (
-              <>
-                <Button size="xs" variant="ghost" onClick={() => handleView(row)}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                </Button>
-                <Button size="xs" variant="ghost" onClick={() => handleEdit(row)}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </Button>
-                <Button size="xs" variant="danger" onClick={() => handleDelete(row)}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </Button>
-              </>
-            )}
-          />
-        </Card>
-      )}
+              <svg 
+                className="w-5 h-5 text-gray-400 group-hover:text-primary-600 transition-colors"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            
+            <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+              {module}
+            </h3>
+            
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                {perms.length} permission{perms.length !== 1 ? 's' : ''}
+              </p>
+              <span className="text-xs text-primary-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                View all →
+              </span>
+            </div>
+          </button>
+        );
+      })}
+      </div>
 
       {/* Module Permissions Modal */}
       <ViewModal
@@ -950,6 +992,15 @@ const PermissionsPage = () => {
           </div>
         )}
       </ViewModal>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
+      )}
     </div>
   );
 };

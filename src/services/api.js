@@ -162,6 +162,16 @@ const api = {
         body: JSON.stringify(roleData),
       }),
     delete: (id) => apiRequest(`/roles/${id}`, { method: 'DELETE' }),
+    attachPermissions: (id, permissionIds) =>
+      apiRequest(`/roles/${id}/permissions/attach`, {
+        method: 'POST',
+        body: JSON.stringify({ permissions: permissionIds }),
+      }),
+    detachPermissions: (id, permissionIds) =>
+      apiRequest(`/roles/${id}/permissions/detach`, {
+        method: 'POST',
+        body: JSON.stringify({ permissions: permissionIds }),
+      }),
   },
 
   // ==================== PERMISSIONS ====================
@@ -172,6 +182,17 @@ const api = {
     },
     getByModule: () => apiRequest('/permissions/by-module'),
     getById: (id) => apiRequest(`/permissions/${id}`),
+    create: (permissionData) =>
+      apiRequest('/permissions', {
+        method: 'POST',
+        body: JSON.stringify(permissionData),
+      }),
+    update: (id, permissionData) =>
+      apiRequest(`/permissions/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(permissionData),
+      }),
+    delete: (id) => apiRequest(`/permissions/${id}`, { method: 'DELETE' }),
   },
 
   // ==================== REPORTS ====================
@@ -281,6 +302,32 @@ const api = {
     },
     getById: (id) => apiRequest(`/schedules/${id}`),
     getStatistics: () => apiRequest('/schedules/statistics'),
+    create: (scheduleData) =>
+      apiRequest('/schedules', {
+        method: 'POST',
+        body: JSON.stringify(scheduleData),
+      }),
+    update: (id, scheduleData) =>
+      apiRequest(`/schedules/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(scheduleData),
+      }),
+    updateStatus: (id, statusData) =>
+      apiRequest(`/schedules/${id}/status`, {
+        method: 'POST',
+        body: JSON.stringify(statusData),
+      }),
+    updateStopStatus: (id, stopData) =>
+      apiRequest(`/schedules/${id}/stop-status`, {
+        method: 'POST',
+        body: JSON.stringify(stopData),
+      }),
+    assignDriver: (id, driverData) =>
+      apiRequest(`/schedules/${id}/assign-driver`, {
+        method: 'POST',
+        body: JSON.stringify(driverData),
+      }),
+    delete: (id) => apiRequest(`/schedules/${id}`, { method: 'DELETE' }),
   },
 
   // ==================== ANALYTICS ====================
@@ -320,11 +367,27 @@ const api = {
   // ==================== SETTINGS ====================
   settings: {
     getMaintenanceMode: () => apiRequest('/settings/maintenance'),
+    updateMaintenanceMode: (maintenanceData) =>
+      apiRequest('/settings/maintenance', {
+        method: 'POST',
+        body: JSON.stringify(maintenanceData),
+      }),
     getRecentActivity: () => apiRequest('/settings/recent-activity'),
     getAuditLogs: (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
       return apiRequest(`/settings/audit-logs${queryString ? `?${queryString}` : ''}`);
     },
+    createBackup: () =>
+      apiRequest('/settings/backup', {
+        method: 'POST',
+      }),
+    getAllBackups: () => apiRequest('/settings/backups'),
+    deleteBackup: (filename) =>
+      apiRequest('/settings/backup', {
+        method: 'DELETE',
+        body: JSON.stringify({ filename }),
+      }),
+    getSystemStats: () => apiRequest('/settings/system-stats'),
   },
 
   // ==================== UPLOADS ====================

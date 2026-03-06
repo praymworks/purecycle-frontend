@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Badge } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
-import { roles, permissions } from '../data';
 import { Input } from '../components/ui';
+import api from '../services/api';
+import { Toast } from '../components/ui';
 
 const RolesPage = () => {
+  const [roles, setRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -14,6 +18,68 @@ const RolesPage = () => {
   const [formData, setFormData] = useState({ name: '', description: '' });
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [expandedModules, setExpandedModules] = useState({});
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  // Fetch roles and permissions from API
+  useEffect(() => {
+    fetchRoles();
+    fetchPermissions();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      const response = await api.roles.getAll();
+      if (response.success) {
+        // Transform API response to match frontend structure
+        const transformedRoles = response.data.map(role => ({
+          id: role.id,
+          name: role.name,
+          slug: role.slug,
+          description: role.description,
+          userCount: role.user_count || 0,
+          isSystem: role.is_system || false,
+          permissions: role.permissions ? role.permissions.map(p => p.slug) : [],
+          createdAt: role.created_at ? new Date(role.created_at).toISOString().split('T')[0] : '',
+          updatedAt: role.updated_at ? new Date(role.updated_at).toISOString().split('T')[0] : '',
+          permissionsData: role.permissions || [] // Keep full permission objects for reference
+        }));
+        setRoles(transformedRoles);
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      showToast('Failed to load roles', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPermissions = async () => {
+    try {
+      const response = await api.permissions.getAll();
+      if (response.success) {
+        // Transform API response to match frontend structure
+        const transformedPermissions = response.data.map(perm => ({
+          id: perm.id,
+          name: perm.name,
+          slug: perm.slug,
+          module: perm.module,
+          description: perm.description,
+          status: perm.status,
+          icon: perm.icon
+        }));
+        setPermissions(transformedPermissions);
+      }
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+      showToast('Failed to load permissions', 'error');
+    }
+  };
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
 
   const columns = [
     {
@@ -81,27 +147,99 @@ const RolesPage = () => {
     setShowPermissionsModal(true);
   };
 
-  const handleSubmitCreate = (e) => {
+  const handleSubmitCreate = async (e) => {
     e.preventDefault();
-    console.log('Creating role:', formData, selectedPermissions);
-    setShowCreateModal(false);
+    try {
+      // Convert permission slugs to IDs
+      const permissionIds = permissions
+        .filter(p => selectedPermissions.includes(p.slug))
+        .map(p => p.id);
+
+      // Generate slug from name
+      const slug = formData.name.toLowerCase().replace(/\s+/g, '_');
+
+      const roleData = {
+        name: formData.name,
+        slug: slug,
+        description: formData.description,
+        permissions: permissionIds
+      };
+
+      const response = await api.roles.create(roleData);
+      if (response.success) {
+        showToast('Role created successfully', 'success');
+        setShowCreateModal(false);
+        fetchRoles(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error creating role:', error);
+      showToast(error.message || 'Failed to create role', 'error');
+    }
   };
 
-  const handleSubmitEdit = (e) => {
+  const handleSubmitEdit = async (e) => {
     e.preventDefault();
-    console.log('Updating role:', selectedRole.id, formData, selectedPermissions);
-    setShowEditModal(false);
+    try {
+      // Convert permission slugs to IDs
+      const permissionIds = permissions
+        .filter(p => selectedPermissions.includes(p.slug))
+        .map(p => p.id);
+
+      const roleData = {
+        name: formData.name,
+        description: formData.description,
+        permissions: permissionIds
+      };
+
+      const response = await api.roles.update(selectedRole.id, roleData);
+      if (response.success) {
+        showToast('Role updated successfully', 'success');
+        setShowEditModal(false);
+        fetchRoles(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating role:', error);
+      showToast(error.message || 'Failed to update role', 'error');
+    }
   };
 
-  const handleSubmitPermissions = () => {
-    console.log('Updating permissions for role:', selectedRole.id, selectedPermissions);
-    setShowPermissionsModal(false);
+  const handleSubmitPermissions = async () => {
+    try {
+      // Convert permission slugs to IDs
+      const permissionIds = permissions
+        .filter(p => selectedPermissions.includes(p.slug))
+        .map(p => p.id);
+
+      const roleData = {
+        permissions: permissionIds
+      };
+
+      const response = await api.roles.update(selectedRole.id, roleData);
+      if (response.success) {
+        showToast('Permissions updated successfully', 'success');
+        setShowPermissionsModal(false);
+        fetchRoles(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating permissions:', error);
+      showToast(error.message || 'Failed to update permissions', 'error');
+    }
   };
 
-  const confirmDelete = () => {
-    console.log('Deleting role:', selectedRole);
-    setShowDeleteModal(false);
+  const confirmDelete = async () => {
+    try {
+      const response = await api.roles.delete(selectedRole.id);
+      if (response.success) {
+        showToast('Role deleted successfully', 'success');
+        setShowDeleteModal(false);
+        fetchRoles(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      showToast(error.message || 'Failed to delete role', 'error');
+    }
   };
+
 
   const togglePermission = (permSlug) => {
     if (selectedPermissions.includes(permSlug)) {
@@ -431,6 +569,15 @@ const RolesPage = () => {
         confirmText="Delete"
         variant="danger"
       />
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
+      )}
     </div>
   );
 };
