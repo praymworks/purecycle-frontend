@@ -1,0 +1,172 @@
+[
+  {
+    "id": 1,
+    "title": "New Report Submitted",
+    "message": "Juan Dela Cruz submitted a missed pickup report for Barangay Taloto",
+    "description": "Report ID: #RPT-2026-001. Status: Pending Review. The resident reported that waste collection was missed on their scheduled pickup day.",
+    "type": "report",
+    "priority": "high",
+    "time": "2 minutes ago",
+    "timestamp": "2026-03-03T21:41:00Z",
+    "unread": true,
+    "actionUrl": "/reports",
+    "sender": {
+      "name": "Juan Dela Cruz",
+      "role": "Resident",
+      "avatar": "JD"
+    }
+  },
+  {
+    "id": 2,
+    "title": "Account Approved",
+    "message": "Jonathan G. Buslon account has been approved",
+    "description": "Business Owner account for Jonathan G. Buslon (Buslon Enterprises) has been successfully verified and approved. They can now access the system.",
+    "type": "account",
+    "priority": "medium",
+    "time": "1 hour ago",
+    "timestamp": "2026-03-03T20:43:00Z",
+    "unread": true,
+    "actionUrl": "/users",
+    "sender": {
+      "name": "System",
+      "role": "Admin",
+      "avatar": "S"
+    }
+  },
+  {
+    "id": 3,
+    "title": "Announcement Posted",
+    "message": "Waste Collection Delay announcement was posted",
+    "description": "A new announcement titled 'Waste Collection Delay - March 5, 2026' has been published and is now visible to all users in the system.",
+    "type": "announcement",
+    "priority": "medium",
+    "time": "3 hours ago",
+    "timestamp": "2026-03-03T18:43:00Z",
+    "unread": false,
+    "actionUrl": "/announcements",
+    "sender": {
+      "name": "Admin Staff",
+      "role": "Staff",
+      "avatar": "AS"
+    }
+  },
+  {
+    "id": 4,
+    "title": "Schedule Updated",
+    "message": "Collection schedule for Zone A has been modified",
+    "description": "The waste collection schedule for Zone A (Barangays: Taloto, Bool, Cogon) has been updated. New pickup time: 8:00 AM - 12:00 PM every Monday and Thursday.",
+    "type": "schedule",
+    "priority": "high",
+    "time": "5 hours ago",
+    "timestamp": "2026-03-03T16:43:00Z",
+    "unread": false,
+    "actionUrl": "/schedules",
+    "sender": {
+      "name": "Schedule Manager",
+      "role": "Admin",
+      "avatar": "SM"
+    }
+  },
+  {
+    "id": 5,
+    "title": "New User Registration",
+    "message": "Maria Santos registered as Purok Leader",
+    "description": "A new Purok Leader registration requires verification. Name: Maria Santos, Purok: Purok 5, Barangay: Dao. Please review and approve the account.",
+    "type": "account",
+    "priority": "medium",
+    "time": "1 day ago",
+    "timestamp": "2026-03-02T21:43:00Z",
+    "unread": false,
+    "actionUrl": "/users",
+    "sender": {
+      "name": "Maria Santos",
+      "role": "Purok Leader",
+      "avatar": "MS"
+    }
+  },
+  {
+    "id": 6,
+    "title": "Report Resolved",
+    "message": "Missed pickup report #RPT-2026-045 has been resolved",
+    "description": "The missed pickup report submitted by Pedro Reyes has been marked as resolved. Collection team confirmed successful pickup completion.",
+    "type": "report",
+    "priority": "low",
+    "time": "2 days ago",
+    "timestamp": "2026-03-01T14:30:00Z",
+    "unread": false,
+    "actionUrl": "/reports",
+    "sender": {
+      "name": "Collection Team",
+      "role": "Staff",
+      "avatar": "CT"
+    }
+  },
+  {
+    "id": 7,
+    "title": "System Maintenance Notice",
+    "message": "Scheduled system maintenance on March 10, 2026",
+    "description": "The system will undergo scheduled maintenance on March 10, 2026, from 2:00 AM to 4:00 AM. Some features may be temporarily unavailable during this period.",
+    "type": "system",
+    "priority": "medium",
+    "time": "3 days ago",
+    "timestamp": "2026-02-28T10:00:00Z",
+    "unread": false,
+    "actionUrl": null,
+    "sender": {
+      "name": "System Administrator",
+      "role": "Admin",
+      "avatar": "SA"
+    }
+  },
+  {
+    "id": 8,
+    "title": "Analytics Report Generated",
+    "message": "Monthly waste collection analytics for February 2026 is ready",
+    "description": "The comprehensive analytics report for February 2026 has been generated. Total collections: 1,247 pickups, 85% on-time rate, 127 missed pickups reported.",
+    "type": "analytics",
+    "priority": "low",
+    "time": "4 days ago",
+    "timestamp": "2026-02-27T09:00:00Z",
+    "unread": false,
+    "actionUrl": "/analytics",
+    "sender": {
+      "name": "Analytics System",
+      "role": "System",
+      "avatar": "AS"
+    }
+  },
+  {
+    "id": 9,
+    "title": "New Announcement Draft",
+    "message": "Announcement 'Recycling Program Launch' saved as draft",
+    "description": "Your announcement about the new recycling program has been saved as a draft. You can edit and publish it when ready.",
+    "type": "announcement",
+    "priority": "low",
+    "time": "5 days ago",
+    "timestamp": "2026-02-26T15:20:00Z",
+    "unread": false,
+    "actionUrl": "/announcements",
+    "sender": {
+      "name": "You",
+      "role": "Admin",
+      "avatar": "Y"
+    }
+  },
+  {
+    "id": 10,
+    "title": "Permission Update",
+    "message": "Role permissions for 'Staff' have been modified",
+    "description": "The permissions for the Staff role have been updated. New permissions added: View Analytics, Export Reports. Please review the changes.",
+    "type": "system",
+    "priority": "medium",
+    "time": "1 week ago",
+    "timestamp": "2026-02-24T11:00:00Z",
+    "unread": false,
+    "actionUrl": "/permissions",
+    "sender": {
+      "name": "Admin",
+      "role": "Admin",
+      "avatar": "A"
+    }
+  }
+]

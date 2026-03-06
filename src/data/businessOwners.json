@@ -1,0 +1,32 @@
+[
+  {
+    "business_owner_id": 1,
+    "user_id": 5,
+    "business_name": "Tinglasang Lutong Bahay",
+    "business_permit": "https://placehold.co/800x600/fff3e0/f57c00?text=Business+Permit+-+Tinglasang+Lutong+Bahay",
+    "street": null,
+    "valid_id_document": "https://placehold.co/600x400/e3f2fd/1976d2?text=Valid+ID+-+Jonathan+Buslon",
+    "created_at": "2025-09-01T11:15:00Z",
+    "updated_at": "2025-09-01T11:15:00Z"
+  },
+  {
+    "business_owner_id": 2,
+    "user_id": 7,
+    "business_name": "Shoppers Mart",
+    "business_permit": "https://placehold.co/800x600/fff3e0/f57c00?text=Business+Permit+-+Shoppers+Mart",
+    "street": "Main Street",
+    "valid_id_document": "https://placehold.co/600x400/e3f2fd/1976d2?text=Valid+ID+-+Pedro+Reyes",
+    "created_at": "2025-08-15T10:30:00Z",
+    "updated_at": "2025-08-15T10:30:00Z"
+  },
+  {
+    "business_owner_id": 3,
+    "user_id": 9,
+    "business_name": "YL Carenderia",
+    "business_permit": "https://placehold.co/800x600/fff3e0/f57c00?text=Business+Permit+-+YL+Carenderia",
+    "street": "Toril Avenue",
+    "valid_id_document": "https://placehold.co/600x400/e3f2fd/1976d2?text=Valid+ID+-+Carlos+Mendoza",
+    "created_at": "2025-07-05T09:00:00Z",
+    "updated_at": "2025-07-05T09:00:00Z"
+  }
+]

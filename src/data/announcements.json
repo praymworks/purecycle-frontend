@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ANN-001",
+    "title": "Important Announcement: Waste Collection Delay",
+    "message": "Please be informed that today's waste collection has been temporary cancelled due to unforeseen maintenance issue. Regular collection will resume tomorrow. We apologize for the inconvenience",
+    "priority": "Moderate",
+    "startDate": "2025-09-12",
+    "endDate": "2025-09-15",
+    "status": "Expired",
+    "datePosted": "2025-09-12",
+    "postedBy": "Admin",
+    "attachments": []
+  },
+  {
+    "id": "ANN-002",
+    "title": "Important Notice: Waste Collection Halted",
+    "message": "Please be informed that today's waste collection has been temporary cancelled due to unforeseen maintenance .....",
+    "priority": "Moderate",
+    "startDate": "2025-03-12",
+    "endDate": "2025-03-20",
+    "status": "Expired",
+    "datePosted": "2025-03-12",
+    "postedBy": "Staff",
+    "attachments": []
+  },
+  {
+    "id": "ANN-003",
+    "title": "New Waste Segregation Guidelines",
+    "message": "Starting next week, new waste segregation rules will be implemented. Please separate biodegradable, non-biodegradable, and recyclable waste.",
+    "priority": "Low",
+    "startDate": "2025-09-25",
+    "endDate": "2025-10-25",
+    "status": "Active",
+    "datePosted": "2025-09-23",
+    "postedBy": "Admin",
+    "attachments": ["guidelines.pdf"]
+  },
+  {
+    "id": "ANN-004",
+    "title": "Holiday Schedule Adjustment",
+    "message": "Waste collection schedule will be adjusted during the upcoming holidays. Please check the updated schedule.",
+    "priority": "Moderate",
+    "startDate": "2025-10-01",
+    "endDate": "2025-10-15",
+    "status": "Active",
+    "datePosted": "2025-09-24",
+    "postedBy": "Staff",
+    "attachments": ["holiday-schedule.pdf"]
+  }
+]

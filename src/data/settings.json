@@ -1,0 +1,40 @@
+{
+  "site": {
+    "name": "PureCycle Admin",
+    "tagline": "Waste Management System",
+    "email": "admin@purecycle.com",
+    "phone": "+63 123 456 7890",
+    "address": "Tagbilaran City, Bohol, Philippines",
+    "maintenanceMode": false,
+    "maintenanceMessage": "System is currently under maintenance. Please check back later.",
+    "timezone": "Asia/Manila",
+    "dateFormat": "MM/DD/YYYY",
+    "timeFormat": "12-hour"
+  },
+  "database": {
+    "lastBackup": "2026-03-04 15:30:00",
+    "backupFrequency": "daily",
+    "autoBackup": true,
+    "backupRetention": 30,
+    "totalBackups": 15,
+    "lastBackupSize": "2.5 MB"
+  },
+  "security": {
+    "sessionTimeout": 30,
+    "maxLoginAttempts": 5,
+    "passwordMinLength": 8,
+    "requireSpecialChar": true,
+    "requireNumber": true,
+    "requireUppercase": true,
+    "enableTwoFactor": false,
+    "auditLogRetention": 90
+  },
+  "notifications": {
+    "emailEnabled": true,
+    "smsEnabled": false,
+    "pushEnabled": true,
+    "reportNotifications": true,
+    "userNotifications": true,
+    "systemNotifications": true
+  }
+}

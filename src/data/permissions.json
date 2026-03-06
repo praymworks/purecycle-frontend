@@ -1,0 +1,1226 @@
+[
+  {
+    "id": 1,
+    "name": "View Dashboard",
+    "slug": "view_dashboard",
+    "module": "Dashboard",
+    "description": "Can access main dashboard page",
+    "status": "active",
+    "icon": "dashboard"
+  },
+  {
+    "id": 2,
+    "name": "View Total Users Widget",
+    "slug": "view_total_users_widget",
+    "module": "Dashboard",
+    "description": "Can view Total Users statistics widget",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 3,
+    "name": "View Total Reports Widget",
+    "slug": "view_total_reports_widget",
+    "module": "Dashboard",
+    "description": "Can view Total Reports statistics widget",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 4,
+    "name": "View Announcements Widget",
+    "slug": "view_announcements_widget",
+    "module": "Dashboard",
+    "description": "Can view Announcements statistics widget",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 5,
+    "name": "View Pending Approvals Widget",
+    "slug": "view_pending_approvals_widget",
+    "module": "Dashboard",
+    "description": "Can view Pending Approvals statistics widget",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 6,
+    "name": "View Waste Watch Chart",
+    "slug": "view_waste_watch_chart",
+    "module": "Dashboard",
+    "description": "Can view Waste Watch Report Ranking chart",
+    "status": "active",
+    "icon": "chart"
+  },
+  {
+    "id": 7,
+    "name": "Filter Waste Watch Chart",
+    "slug": "filter_waste_watch_chart",
+    "module": "Dashboard",
+    "description": "Can filter Waste Watch chart by time (Today, This Week, This Month)",
+    "status": "active",
+    "icon": "chart"
+  },
+  {
+    "id": 8,
+    "name": "View Recent Activity",
+    "slug": "view_recent_activity",
+    "module": "Dashboard",
+    "description": "Can view Recent Activity section",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 9,
+    "name": "View Quick Actions",
+    "slug": "view_quick_actions",
+    "module": "Dashboard",
+    "description": "Can view Quick Actions section",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 10,
+    "name": "Use Quick Action - Approve Users",
+    "slug": "use_quick_action_approve_users",
+    "module": "Dashboard",
+    "description": "Can use 'Approve Users' quick action button",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 11,
+    "name": "Use Quick Action - Create Announcement",
+    "slug": "use_quick_action_create_announcement",
+    "module": "Dashboard",
+    "description": "Can use 'Create Announcement' quick action button",
+    "status": "active",
+    "icon": "plus"
+  },
+  {
+    "id": 12,
+    "name": "Use Quick Action - View Analytics",
+    "slug": "use_quick_action_view_analytics",
+    "module": "Dashboard",
+    "description": "Can use 'View Analytics' quick action button",
+    "status": "active",
+    "icon": "chart"
+  },
+  {
+    "id": 13,
+    "name": "View User Management Module",
+    "slug": "view_user_management_module",
+    "module": "User Management",
+    "description": "Can access the User Management page",
+    "status": "active",
+    "icon": "users"
+  },
+  {
+    "id": 14,
+    "name": "View Users List",
+    "slug": "view_users_list",
+    "module": "User Management",
+    "description": "Can view the users list/table",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 15,
+    "name": "Search Users",
+    "slug": "search_users",
+    "module": "User Management",
+    "description": "Can search and filter users",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 16,
+    "name": "View User Details",
+    "slug": "view_user_details",
+    "module": "User Management",
+    "description": "Can view detailed user information in modal",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 17,
+    "name": "View User Documents",
+    "slug": "view_user_documents",
+    "module": "User Management",
+    "description": "Can view uploaded user documents",
+    "status": "active",
+    "icon": "document"
+  },
+  {
+    "id": 18,
+    "name": "Add New User",
+    "slug": "add_new_user",
+    "module": "User Management",
+    "description": "Can create new Admin/Staff user accounts",
+    "status": "active",
+    "icon": "plus"
+  },
+  {
+    "id": 19,
+    "name": "Edit User",
+    "slug": "edit_user",
+    "module": "User Management",
+    "description": "Can edit user information (Admin/Staff only)",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 20,
+    "name": "Delete User",
+    "slug": "delete_user",
+    "module": "User Management",
+    "description": "Can delete user accounts",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 21,
+    "name": "Approve User",
+    "slug": "approve_user",
+    "module": "User Management",
+    "description": "Can approve pending user registrations",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 22,
+    "name": "Reject User",
+    "slug": "reject_user",
+    "module": "User Management",
+    "description": "Can reject pending user registrations",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 23,
+    "name": "Reset User Password",
+    "slug": "reset_user_password",
+    "module": "User Management",
+    "description": "Can reset user passwords",
+    "status": "active",
+    "icon": "lock"
+  },
+  {
+    "id": 24,
+    "name": "Generate Temporary Password",
+    "slug": "generate_temporary_password",
+    "module": "User Management",
+    "description": "Can generate temporary passwords for users",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 25,
+    "name": "Export Users",
+    "slug": "export_users",
+    "module": "User Management",
+    "description": "Can export user data to CSV/Excel",
+    "status": "active",
+    "icon": "download"
+  },
+  {
+    "id": 26,
+    "name": "View Reports Management Module",
+    "slug": "view_reports_management_module",
+    "module": "Reports Management",
+    "description": "Can access the Reports Management page",
+    "status": "active",
+    "icon": "document"
+  },
+  {
+    "id": 27,
+    "name": "View Reports List",
+    "slug": "view_reports_list",
+    "module": "Reports Management",
+    "description": "Can view the reports list/table",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 28,
+    "name": "Search Reports",
+    "slug": "search_reports",
+    "module": "Reports Management",
+    "description": "Can search and filter reports",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 29,
+    "name": "View Report Details",
+    "slug": "view_report_details",
+    "module": "Reports Management",
+    "description": "Can view detailed report information in modal",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 30,
+    "name": "View Reporter Information",
+    "slug": "view_reporter_information",
+    "module": "Reports Management",
+    "description": "Can view reporter details (name, role, location)",
+    "status": "active",
+    "icon": "user"
+  },
+  {
+    "id": 31,
+    "name": "View Evidence Photo",
+    "slug": "view_evidence_photo",
+    "module": "Reports Management",
+    "description": "Can view uploaded evidence photos",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 32,
+    "name": "View Staff Remarks",
+    "slug": "view_staff_remarks",
+    "module": "Reports Management",
+    "description": "Can read staff remarks and notes on reports",
+    "status": "active",
+    "icon": "document"
+  },
+  {
+    "id": 33,
+    "name": "Start Report Processing",
+    "slug": "start_report_processing",
+    "module": "Reports Management",
+    "description": "Can change report status from Pending to In Progress",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 34,
+    "name": "Resolve Report",
+    "slug": "resolve_report",
+    "module": "Reports Management",
+    "description": "Can mark reports as Resolved",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 35,
+    "name": "Reject Report",
+    "slug": "reject_report",
+    "module": "Reports Management",
+    "description": "Can reject reports",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 36,
+    "name": "Add Staff Remarks",
+    "slug": "add_staff_remarks",
+    "module": "Reports Management",
+    "description": "Can add staff remarks/notes to reports",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 37,
+    "name": "Filter Reports by Status",
+    "slug": "filter_reports_by_status",
+    "module": "Reports Management",
+    "description": "Can filter reports by status (Pending, In Progress, Resolved, Rejected)",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 38,
+    "name": "Filter Reports by Priority",
+    "slug": "filter_reports_by_priority",
+    "module": "Reports Management",
+    "description": "Can filter reports by priority level",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 39,
+    "name": "Export Reports",
+    "slug": "export_reports",
+    "module": "Reports Management",
+    "description": "Can export reports to PDF/Excel",
+    "status": "active",
+    "icon": "download"
+  },
+  {
+    "id": 40,
+    "name": "View Announcements Module",
+    "slug": "view_announcements_module",
+    "module": "Announcements",
+    "description": "Can access the Announcements page",
+    "status": "active",
+    "icon": "megaphone"
+  },
+  {
+    "id": 41,
+    "name": "View Announcements List",
+    "slug": "view_announcements_list",
+    "module": "Announcements",
+    "description": "Can view the announcements list/table",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 42,
+    "name": "Search Announcements",
+    "slug": "search_announcements",
+    "module": "Announcements",
+    "description": "Can search and filter announcements",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 43,
+    "name": "View Announcement Details",
+    "slug": "view_announcement_details",
+    "module": "Announcements",
+    "description": "Can view detailed announcement information in modal",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 44,
+    "name": "View Announcement Attachments",
+    "slug": "view_announcement_attachments",
+    "module": "Announcements",
+    "description": "Can view attached files in announcements",
+    "status": "active",
+    "icon": "document"
+  },
+  {
+    "id": 45,
+    "name": "Create Announcement",
+    "slug": "create_announcement",
+    "module": "Announcements",
+    "description": "Can create new announcements",
+    "status": "active",
+    "icon": "plus"
+  },
+  {
+    "id": 46,
+    "name": "Edit Announcement",
+    "slug": "edit_announcement",
+    "module": "Announcements",
+    "description": "Can edit existing announcements",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 47,
+    "name": "Delete Announcement",
+    "slug": "delete_announcement",
+    "module": "Announcements",
+    "description": "Can delete announcements",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 48,
+    "name": "Set Announcement Priority",
+    "slug": "set_announcement_priority",
+    "module": "Announcements",
+    "description": "Can set priority level (Low, Moderate, Urgent)",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 49,
+    "name": "Set Announcement Schedule",
+    "slug": "set_announcement_schedule",
+    "module": "Announcements",
+    "description": "Can set start date and end date for announcements",
+    "status": "active",
+    "icon": "calendar"
+  },
+  {
+    "id": 50,
+    "name": "Filter Announcements by Status",
+    "slug": "filter_announcements_by_status",
+    "module": "Announcements",
+    "description": "Can filter announcements by Active/Inactive status",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 51,
+    "name": "Filter Announcements by Priority",
+    "slug": "filter_announcements_by_priority",
+    "module": "Announcements",
+    "description": "Can filter announcements by priority level",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 52,
+    "name": "View Routes Management Module",
+    "slug": "view_routes_module",
+    "module": "Routes Management",
+    "description": "Can access the Routes Management page for garbage collection routes",
+    "status": "active",
+    "icon": "map"
+  },
+  {
+    "id": 53,
+    "name": "View Routes List",
+    "slug": "view_routes_list",
+    "module": "Routes Management",
+    "description": "Can view the routes list/table",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 54,
+    "name": "Search Routes",
+    "slug": "search_routes",
+    "module": "Routes Management",
+    "description": "Can search and filter routes by name, municipality, status",
+    "status": "active",
+    "icon": "search"
+  },
+  {
+    "id": 55,
+    "name": "View Route Details",
+    "slug": "view_route_details",
+    "module": "Routes Management",
+    "description": "Can view detailed route information and statistics",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 56,
+    "name": "View Route on Map",
+    "slug": "view_route_on_map",
+    "module": "Routes Management",
+    "description": "Can view route visualization on interactive map",
+    "status": "active",
+    "icon": "map"
+  },
+  {
+    "id": 57,
+    "name": "View Route Waypoints",
+    "slug": "view_route_waypoints",
+    "module": "Routes Management",
+    "description": "Can view waypoints (start, pickup points, end) of a route",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 58,
+    "name": "Create Route",
+    "slug": "create_route",
+    "module": "Routes Management",
+    "description": "Can create new garbage collection routes with waypoints",
+    "status": "active",
+    "icon": "plus"
+  },
+  {
+    "id": 59,
+    "name": "Add Waypoint to Route",
+    "slug": "add_waypoint_to_route",
+    "module": "Routes Management",
+    "description": "Can add pickup points/waypoints to a route",
+    "status": "active",
+    "icon": "plus"
+  },
+  {
+    "id": 60,
+    "name": "Edit Route",
+    "slug": "edit_route",
+    "module": "Routes Management",
+    "description": "Can edit route details (name, description, waypoints)",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 61,
+    "name": "Delete Route",
+    "slug": "delete_route",
+    "module": "Routes Management",
+    "description": "Can delete routes permanently",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 62,
+    "name": "Change Route Status",
+    "slug": "change_route_status",
+    "module": "Routes Management",
+    "description": "Can activate or deactivate routes",
+    "status": "active",
+    "icon": "toggle"
+  },
+  {
+    "id": 63,
+    "name": "View Route Statistics",
+    "slug": "view_route_statistics",
+    "module": "Routes Management",
+    "description": "Can view route distance, duration, and performance metrics",
+    "status": "active",
+    "icon": "chart"
+  },
+  {
+    "id": 129,
+    "name": "Export Routes Data",
+    "slug": "export_routes_data",
+    "module": "Routes Management",
+    "description": "Can export routes data to file",
+    "status": "active",
+    "icon": "download"
+  },
+  {
+    "id": 130,
+    "name": "Switch Map Style",
+    "slug": "switch_map_style",
+    "module": "Routes Management",
+    "description": "Can switch between different map styles (Standard, Satellite, Topo)",
+    "status": "active",
+    "icon": "map"
+  },
+  {
+    "id": 131,
+    "name": "View Schedules Module",
+    "slug": "view_schedules_module",
+    "module": "Schedules",
+    "description": "Can access the Collection Schedules page",
+    "status": "active",
+    "icon": "calendar"
+  },
+  {
+    "id": 132,
+    "name": "View Weekly Overview",
+    "slug": "view_weekly_overview",
+    "module": "Schedules",
+    "description": "Can view weekly schedule overview",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 133,
+    "name": "View Calendar View",
+    "slug": "view_calendar_view",
+    "module": "Schedules",
+    "description": "Can view schedules in calendar/monthly view",
+    "status": "active",
+    "icon": "calendar"
+  },
+  {
+    "id": 134,
+    "name": "Switch View Mode",
+    "slug": "switch_view_mode",
+    "module": "Schedules",
+    "description": "Can toggle between List and Calendar view modes",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 135,
+    "name": "View Schedule Details",
+    "slug": "view_schedule_details",
+    "module": "Schedules",
+    "description": "Can view detailed schedule information in modal",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 136,
+    "name": "Bulk Create Schedules",
+    "slug": "bulk_create_schedules",
+    "module": "Schedules",
+    "description": "Can create multiple schedules (specific dates, week, month)",
+    "status": "active",
+    "icon": "plus"
+  },
+  {
+    "id": 124,
+    "name": "Edit Schedule",
+    "slug": "edit_schedule",
+    "module": "Schedules",
+    "description": "Can edit existing schedules (route, date, time)",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 125,
+    "name": "Cancel Schedule",
+    "slug": "cancel_schedule",
+    "module": "Schedules",
+    "description": "Can cancel schedules with reason",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 126,
+    "name": "Reactivate Schedule",
+    "slug": "reactivate_schedule",
+    "module": "Schedules",
+    "description": "Can reactivate cancelled or completed schedules",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 127,
+    "name": "Mark Schedule as Completed",
+    "slug": "mark_schedule_completed",
+    "module": "Schedules",
+    "description": "Can mark schedules as completed",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 128,
+    "name": "Filter Schedules by Day",
+    "slug": "filter_schedules_by_day",
+    "module": "Schedules",
+    "description": "Can filter schedules by day of the week",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 129,
+    "name": "View Analytics Module",
+    "slug": "view_analytics_module",
+    "module": "Analytics",
+    "description": "Can access the Analytics Dashboard page",
+    "status": "active",
+    "icon": "chart"
+  },
+  {
+    "id": 130,
+    "name": "View Statistics Cards",
+    "slug": "view_statistics_cards",
+    "module": "Analytics",
+    "description": "Can view main statistics cards (Users, Reports, Announcements, Routes)",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 131,
+    "name": "View Waste Watch Chart",
+    "slug": "view_waste_watch_chart",
+    "module": "Analytics",
+    "description": "Can view Waste Watch Report Ranking bar chart",
+    "status": "active",
+    "icon": "chart"
+  },
+  {
+    "id": 132,
+    "name": "Filter Waste Watch Chart",
+    "slug": "filter_waste_watch_chart",
+    "module": "Analytics",
+    "description": "Can filter chart by time (Today, This Week, This Month)",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 133,
+    "name": "View Most Active Reporters Chart",
+    "slug": "view_active_reporters_chart",
+    "module": "Analytics",
+    "description": "Can view Most Active Reporters pie chart",
+    "status": "active",
+    "icon": "chart"
+  },
+  {
+    "id": 134,
+    "name": "View Infographics Reports Chart",
+    "slug": "view_infographics_chart",
+    "module": "Analytics",
+    "description": "Can view monthly report trends line chart",
+    "status": "active",
+    "icon": "chart"
+  },
+  {
+    "id": 135,
+    "name": "View Quick Stats",
+    "slug": "view_quick_stats",
+    "module": "Analytics",
+    "description": "Can view quick statistics (Approval Rate, Response Time, Resolution, Active Users)",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 136,
+    "name": "Export Analytics Report",
+    "slug": "export_analytics_report",
+    "module": "Analytics",
+    "description": "Can export analytics data to file",
+    "status": "active",
+    "icon": "download"
+  },
+  {
+    "id": 124,
+    "name": "Configure Analytics Settings",
+    "slug": "configure_analytics_settings",
+    "module": "Analytics",
+    "description": "Can access analytics settings and configuration",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 125,
+    "name": "View Roles Management Module",
+    "slug": "view_roles_management_module",
+    "module": "Access Control",
+    "description": "Can access the Roles Management page",
+    "status": "active",
+    "icon": "shield"
+  },
+  {
+    "id": 126,
+    "name": "View Roles List",
+    "slug": "view_roles_list",
+    "module": "Access Control",
+    "description": "Can view the roles list/table",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 127,
+    "name": "Search Roles",
+    "slug": "search_roles",
+    "module": "Access Control",
+    "description": "Can search and filter roles",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 128,
+    "name": "View Role Details",
+    "slug": "view_role_details",
+    "module": "Access Control",
+    "description": "Can view detailed role information in modal",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 129,
+    "name": "View Role Permissions",
+    "slug": "view_role_permissions",
+    "module": "Access Control",
+    "description": "Can view permissions assigned to a role",
+    "status": "active",
+    "icon": "shield"
+  },
+  {
+    "id": 130,
+    "name": "Create Role",
+    "slug": "create_role",
+    "module": "Access Control",
+    "description": "Can create new roles",
+    "status": "active",
+    "icon": "plus"
+  },
+  {
+    "id": 131,
+    "name": "Edit Role",
+    "slug": "edit_role",
+    "module": "Access Control",
+    "description": "Can edit role name and description",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 132,
+    "name": "Delete Role",
+    "slug": "delete_role",
+    "module": "Access Control",
+    "description": "Can delete non-system roles",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 133,
+    "name": "Manage Role Permissions",
+    "slug": "manage_role_permissions",
+    "module": "Access Control",
+    "description": "Can assign/remove permissions to/from roles",
+    "status": "active",
+    "icon": "shield"
+  },
+  {
+    "id": 134,
+    "name": "View Permissions Management Module",
+    "slug": "view_permissions_management_module",
+    "module": "Access Control",
+    "description": "Can access the Permissions Management page",
+    "status": "active",
+    "icon": "shield"
+  },
+  {
+    "id": 135,
+    "name": "View Permissions by Module",
+    "slug": "view_permissions_by_module",
+    "module": "Access Control",
+    "description": "Can view permissions grouped by module (card grid)",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 136,
+    "name": "View All Permissions Table",
+    "slug": "view_all_permissions_table",
+    "module": "Access Control",
+    "description": "Can view all permissions in table view",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 124,
+    "name": "Search Permissions",
+    "slug": "search_permissions",
+    "module": "Access Control",
+    "description": "Can search and filter permissions",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 125,
+    "name": "View Permission Details",
+    "slug": "view_permission_details",
+    "module": "Access Control",
+    "description": "Can view detailed permission information",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 126,
+    "name": "Create Permission",
+    "slug": "create_permission",
+    "module": "Access Control",
+    "description": "Can create new permissions",
+    "status": "active",
+    "icon": "plus"
+  },
+  {
+    "id": 127,
+    "name": "Edit Permission",
+    "slug": "edit_permission",
+    "module": "Access Control",
+    "description": "Can edit permission details",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 128,
+    "name": "Delete Permission",
+    "slug": "delete_permission",
+    "module": "Access Control",
+    "description": "Can delete permissions",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 129,
+    "name": "Change Permission Status",
+    "slug": "change_permission_status",
+    "module": "Access Control",
+    "description": "Can change permission status (active, maintenance, unavailable, bug)",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 130,
+    "name": "Assign Permission Icon",
+    "slug": "assign_permission_icon",
+    "module": "Access Control",
+    "description": "Can assign visual icons to permissions",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 131,
+    "name": "View Profile",
+    "slug": "view_profile",
+    "module": "Profile",
+    "description": "Can view own profile",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 132,
+    "name": "Edit Profile",
+    "slug": "edit_profile",
+    "module": "Profile",
+    "description": "Can edit own profile",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 133,
+    "name": "Change Password",
+    "slug": "change_password",
+    "module": "Profile",
+    "description": "Can change own password",
+    "status": "active",
+    "icon": "lock"
+  },
+  {
+    "id": 134,
+    "name": "View Notifications Module",
+    "slug": "view_notifications_module",
+    "module": "Notifications",
+    "description": "Can access the Notifications page",
+    "status": "active",
+    "icon": "bell"
+  },
+  {
+    "id": 135,
+    "name": "View Notifications List",
+    "slug": "view_notifications_list",
+    "module": "Notifications",
+    "description": "Can view all notifications",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 136,
+    "name": "Search Notifications",
+    "slug": "search_notifications",
+    "module": "Notifications",
+    "description": "Can search notifications",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 124,
+    "name": "Filter Notifications by Status",
+    "slug": "filter_notifications_by_status",
+    "module": "Notifications",
+    "description": "Can filter by All/Unread/Read status",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 125,
+    "name": "Filter Notifications by Type",
+    "slug": "filter_notifications_by_type",
+    "module": "Notifications",
+    "description": "Can filter by type (Report, Account, Announcement, Schedule, System)",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 126,
+    "name": "View Notification Details",
+    "slug": "view_notification_details",
+    "module": "Notifications",
+    "description": "Can view full notification details",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 127,
+    "name": "Mark Notification as Read",
+    "slug": "mark_notification_read",
+    "module": "Notifications",
+    "description": "Can mark individual notification as read",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 128,
+    "name": "Mark Notification as Unread",
+    "slug": "mark_notification_unread",
+    "module": "Notifications",
+    "description": "Can mark notification as unread",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 129,
+    "name": "Mark All Notifications as Read",
+    "slug": "mark_all_notifications_read",
+    "module": "Notifications",
+    "description": "Can mark all notifications as read at once",
+    "status": "active",
+    "icon": "check"
+  },
+  {
+    "id": 130,
+    "name": "Delete Notification",
+    "slug": "delete_notification",
+    "module": "Notifications",
+    "description": "Can delete individual notifications",
+    "status": "active",
+    "icon": "trash"
+  },
+  {
+    "id": 131,
+    "name": "Configure Notification Settings",
+    "slug": "configure_notification_settings",
+    "module": "Notifications",
+    "description": "Can access notification settings and configuration",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 132,
+    "name": "Enable/Disable Notifications by Type",
+    "slug": "enable_disable_notifications_by_type",
+    "module": "Notifications",
+    "description": "Can enable/disable specific notification types",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 133,
+    "name": "Set Notification Recipients by Role",
+    "slug": "set_notification_recipients_by_role",
+    "module": "Notifications",
+    "description": "Can configure which roles receive specific notifications",
+    "status": "active",
+    "icon": "users"
+  },
+  {
+    "id": 134,
+    "name": "View System Settings Module",
+    "slug": "view_system_settings_module",
+    "module": "System Settings",
+    "description": "Can access the System Settings page",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 135,
+    "name": "View General Settings Tab",
+    "slug": "view_general_settings_tab",
+    "module": "System Settings",
+    "description": "Can view general settings (site name, email, phone, etc.)",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 136,
+    "name": "Edit General Settings",
+    "slug": "edit_general_settings",
+    "module": "System Settings",
+    "description": "Can edit site name, tagline, email, phone, address, timezone, date/time format",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 124,
+    "name": "View Maintenance Tab",
+    "slug": "view_maintenance_tab",
+    "module": "System Settings",
+    "description": "Can view site maintenance settings",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 125,
+    "name": "Enable/Disable Maintenance Mode",
+    "slug": "enable_disable_maintenance_mode",
+    "module": "System Settings",
+    "description": "Can toggle system-wide maintenance mode ON/OFF",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 126,
+    "name": "Edit Maintenance Message",
+    "slug": "edit_maintenance_message",
+    "module": "System Settings",
+    "description": "Can edit the maintenance mode message shown to users",
+    "status": "active",
+    "icon": "pencil"
+  },
+  {
+    "id": 127,
+    "name": "View Database Tab",
+    "slug": "view_database_tab",
+    "module": "System Settings",
+    "description": "Can view database management settings",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 128,
+    "name": "Export Database",
+    "slug": "export_database",
+    "module": "System Settings",
+    "description": "Can export database backup",
+    "status": "active",
+    "icon": "download"
+  },
+  {
+    "id": 129,
+    "name": "Import Database",
+    "slug": "import_database",
+    "module": "System Settings",
+    "description": "Can import database from file",
+    "status": "active",
+    "icon": "download"
+  },
+  {
+    "id": 130,
+    "name": "Configure Auto Backup",
+    "slug": "configure_auto_backup",
+    "module": "System Settings",
+    "description": "Can enable/disable auto backup and set frequency/retention",
+    "status": "active",
+    "icon": "cog"
+  },
+  {
+    "id": 131,
+    "name": "View Security Tab",
+    "slug": "view_security_tab",
+    "module": "System Settings",
+    "description": "Can view security and authentication settings",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 132,
+    "name": "Configure Session Settings",
+    "slug": "configure_session_settings",
+    "module": "System Settings",
+    "description": "Can configure session timeout and max login attempts",
+    "status": "active",
+    "icon": "lock"
+  },
+  {
+    "id": 133,
+    "name": "Configure Password Policy",
+    "slug": "configure_password_policy",
+    "module": "System Settings",
+    "description": "Can set password requirements (length, uppercase, numbers, special chars, 2FA)",
+    "status": "active",
+    "icon": "lock"
+  },
+  {
+    "id": 134,
+    "name": "View Audit Trail Tab",
+    "slug": "view_audit_trail_tab",
+    "module": "System Settings",
+    "description": "Can view audit trail/activity logs",
+    "status": "active",
+    "icon": "document"
+  },
+  {
+    "id": 135,
+    "name": "View Audit Logs",
+    "slug": "view_audit_logs",
+    "module": "System Settings",
+    "description": "Can view all user activity logs (login, actions, modules, timestamps)",
+    "status": "active",
+    "icon": "eye"
+  },
+  {
+    "id": 136,
+    "name": "Export Audit Logs",
+    "slug": "export_audit_logs",
+    "module": "System Settings",
+    "description": "Can export audit trail data",
+    "status": "active",
+    "icon": "download"
+  }
+]
