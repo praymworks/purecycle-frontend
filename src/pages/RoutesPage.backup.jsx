@@ -1,41 +1,145 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-// import { Card, Button, Badge, Input, Select, Toast, Loading, AccessDenied } from '../components/ui';
-import { Card, Button, Badge, Input, Select, Toast, Loading } from '../components/ui';
-import { FormModal, AlertModal, ViewModal } from '../components/modals';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+// import { Card, Button, Badge, Input, Toast, Loading, AccessDenied } from '../components/ui';
+import { Card, Button, Badge, Input, Toast, Loading } from '../components/ui';
+import { FormModal, AlertModal } from '../components/modals';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { hasPermission } from '../utils/permissions';
+import routesData from '../data/routes.json';
+import LeafletRoutesMap, { MAP_STYLES, ROUTES_MAP_DEFAULT_CENTER } from '../components/routes/LeafletRoutesMap';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import barangayData from '../data/bohol_complete_barangays.json';
 
-// OSRM Routing Service (FREE - follows actual roads!)
-const getOSRMRoute = async (waypoints) => {
+const ROUTES_PAGE_LOG_PREFIX = '[RoutesPage]';
+
+const logRoutesPage = (message, payload) => {
+  if (payload === undefined) {
+    console.log(`${ROUTES_PAGE_LOG_PREFIX} ${message}`);
+    return;
+  }
+
+  console.log(`${ROUTES_PAGE_LOG_PREFIX} ${message}`, payload);
+};
+
+const toFiniteNumber = (value) => {
+  const numericValue = Number.parseFloat(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+};
+
+const normalizeWaypoint = (waypoint, index) => {
+  const lat = toFiniteNumber(waypoint?.lat);
+  const lng = toFiniteNumber(waypoint?.lng);
+
+  return {
+    id: waypoint?.id || `WP-${index + 1}`,
+    name: waypoint?.name || `Waypoint ${index + 1}`,
+    barangay: waypoint?.barangay || '',
+    address: waypoint?.address || '',
+    type: waypoint?.type || (index === 0 ? 'start' : 'pickup'),
+    order: Number.isFinite(Number(waypoint?.order)) ? Number(waypoint.order) : index + 1,
+    lat: lat ?? 0,
+    lng: lng ?? 0,
+  };
+};
+
+const normalizeRoute = (route, index) => {
+  const routeIdentifier = String(route?.route_id || route?.id || `route-${index + 1}`);
+  const waypoints = Array.isArray(route?.waypoints)
+    ? route.waypoints.map(normalizeWaypoint).sort((first, second) => first.order - second.order)
+    : [];
+
+  return {
+    ...route,
+    id: routeIdentifier,
+    route_id: route?.route_id || routeIdentifier,
+    name: route?.name || `Route ${index + 1}`,
+    description: route?.description || 'No description provided.',
+    municipality: route?.municipality || 'Trinidad',
+    province: route?.province || 'Bohol',
+    status: route?.status || 'active',
+    color: route?.color || '#3B82F6',
+    waypoints,
+    distance: route?.distance || 'N/A',
+    estimatedDuration: route?.estimated_duration || route?.estimatedDuration || 'N/A',
+    createdAt: route?.created_at || route?.createdAt || null,
+    updatedAt: route?.updated_at || route?.updatedAt || null,
+  };
+};
+
+const buildFallbackGeometry = (route) => ({
+  coordinates: route.waypoints.map((waypoint) => [waypoint.lat, waypoint.lng]),
+  distance: route.distance || 'N/A',
+  duration: route.estimatedDuration || 'N/A',
+  source: 'straight-line',
+});
+
+const extractRoutesFromResponse = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.routes)) return response.routes;
+  return [];
+};
+
+const getOSRMRoute = async (route) => {
+  const waypoints = route?.waypoints || [];
+
+  if (waypoints.length < 2) {
+    logRoutesPage('Routing skipped: not enough waypoints', {
+      routeId: route?.route_id || route?.id,
+      routeName: route?.name,
+      waypointCount: waypoints.length,
+    });
+    return null;
+  }
+
+  const coordinates = waypoints.map((waypoint) => `${waypoint.lng},${waypoint.lat}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson&steps=true`;
+
+  logRoutesPage('Loading route waypoints', {
+    routeId: route?.route_id || route?.id,
+    routeName: route?.name,
+    waypoints: waypoints.map((waypoint) => ({
+      id: waypoint.id,
+      name: waypoint.name,
+      order: waypoint.order,
+      lat: waypoint.lat,
+      lng: waypoint.lng,
+      type: waypoint.type,
+    })),
+  });
+  logRoutesPage('Routing API request', { routeId: route?.route_id || route?.id, url });
+
   try {
-    // Build coordinates string for OSRM: lng,lat;lng,lat;...
-    const coordinates = waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
-    
-    // OSRM API endpoint (free public server)
-    const url = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
-    
     const response = await fetch(url);
     const data = await response.json();
-    
-    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-      const route = data.routes[0];
-      // Convert GeoJSON coordinates [lng, lat] to Leaflet format [lat, lng]
-      const coordinates = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-      
-      return {
-        coordinates,
-        distance: (route.distance / 1000).toFixed(2) + ' km', // meters to km
-        duration: Math.round(route.duration / 60) + ' minutes' // seconds to minutes
-      };
+
+    logRoutesPage('Routing API response', {
+      routeId: route?.route_id || route?.id,
+      code: data?.code,
+      routesReturned: data?.routes?.length || 0,
+      waypointsReturned: data?.waypoints?.length || 0,
+    });
+
+    if (data?.code !== 'Ok' || !data?.routes?.length) {
+      return null;
     }
-    return null;
+
+    const selectedRoute = data.routes[0];
+
+    return {
+      coordinates: selectedRoute.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+      distance: `${(selectedRoute.distance / 1000).toFixed(2)} km`,
+      duration: `${Math.round(selectedRoute.duration / 60)} minutes`,
+      source: 'osrm',
+    };
   } catch (error) {
-    console.error('OSRM routing error:', error);
+    console.error(`${ROUTES_PAGE_LOG_PREFIX} OSRM routing error`, {
+      routeId: route?.route_id || route?.id,
+      routeName: route?.name,
+      message: error?.message,
+    });
     return null;
   }
 };
@@ -48,247 +152,182 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Map click handler component
-const MapClickHandler = ({ onMapClick, isEnabled }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!isEnabled) return;
-
-    const handleClick = (e) => {
-      onMapClick(e.latlng);
-    };
-
-    map.on('click', handleClick);
-    map.getContainer().style.cursor = 'crosshair';
-
-    return () => {
-      map.off('click', handleClick);
-      map.getContainer().style.cursor = '';
-    };
-  }, [map, onMapClick, isEnabled]);
-
-  return null;
-};
-
-// Custom marker icons with numbers
-const createCustomIcon = (color, type, number) => {
-  const iconHtml = type === 'start' 
-    ? `<div style="background-color: ${color}; width: 35px; height: 35px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.4);"><div style="transform: rotate(45deg); margin-top: 6px; margin-left: 10px; color: white; font-weight: bold; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">${number}</div></div>`
-    : type === 'end'
-    ? `<div style="background-color: ${color}; width: 35px; height: 35px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.4);"><div style="transform: rotate(45deg); margin-top: 6px; margin-left: 10px; color: white; font-weight: bold; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">${number}</div></div>`
-    : `<div style="background-color: ${color}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">${number}</div>`;
-  
-  return L.divIcon({
-    html: iconHtml,
-    className: 'custom-marker',
-    iconSize: [35, 35],
-    iconAnchor: [17.5, 35],
-  });
-};
-
-// Available FREE map styles
-const mapStyles = [
-  {
-    name: 'OpenStreetMap',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  },
-  {
-    name: 'Satellite (Esri)',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-  },
-  {
-    name: 'Topo Map',
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
-  },
-  {
-    name: 'Dark Mode',
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-  },
-  {
-    name: 'Light Mode',
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-  },
-  {
-    name: 'Street (CartoDB)',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-  }
-];
-
 const RoutesPage = () => {
   const { user: currentUser } = useAuth();
   const [routes, setRoutes] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState(null);
+  const [selectedWaypoint, setSelectedWaypoint] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [viewRoute, setViewRoute] = useState(null);
   const [routeGeometries, setRouteGeometries] = useState({});
   const [loadingRoutes, setLoadingRoutes] = useState(true);
+  const [loadingGeometries, setLoadingGeometries] = useState(false);
   const [selectedMapStyle, setSelectedMapStyle] = useState(0);
-  
-  // Route creation state
+  const [editingRoute, setEditingRoute] = useState(null);
+  const [deleteRouteData, setDeleteRouteData] = useState(null);
+
   const [isCreatingRoute, setIsCreatingRoute] = useState(false);
   const [newRouteWaypoints, setNewRouteWaypoints] = useState([]);
   const [newRouteData, setNewRouteData] = useState({
     name: '',
     description: '',
-    color: '#3B82F6'
+    color: '#3B82F6',
   });
-  
-  // Waypoint form state
+
   const [waypointForm, setWaypointForm] = useState({
     name: '',
     barangay: '',
-    purok: '',
     type: 'pickup',
     lat: 0,
-    lng: 0
+    lng: 0,
   });
   const [showWaypointModal, setShowWaypointModal] = useState(false);
-  const [availablePuroks, setAvailablePuroks] = useState([]);
   const [toast, setToast] = useState({ show: false, message: '', variant: 'success' });
 
-  // Get barangays list from JSON
-  const barangays = barangayData.city_municipalities[0]?.barangays || [];
-  
-  // Generate puroks for selected barangay (generic list: Purok 1-7)
-  const generatePuroks = (barangay) => {
-    if (!barangay) return [];
-    // Generic purok list - can be customized per barangay if needed
-    return [
-      'Purok 1',
-      'Purok 2',
-      'Purok 3',
-      'Purok 4',
-      'Purok 5',
-      'Purok 6',
-      'Purok 7'
-    ];
-  };
+  const loadRoutes = useCallback(async () => {
+    setLoadingRoutes(true);
+    logRoutesPage('Fetching routes from backend');
 
-  // Load routes from backend API
-  const loadRoutes = async () => {
     try {
-      setLoadingRoutes(true);
       const response = await api.routes.getAll();
-      // API response logged
-      
-      // Handle different response structures
-      let fetchedRoutes = [];
-      if (Array.isArray(response)) {
-        // Direct array: [route1, route2, ...]
-        fetchedRoutes = response;
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        // Laravel paginated: { data: { data: [...] } }
-        fetchedRoutes = response.data.data;
-      } else if (response.data && Array.isArray(response.data)) {
-        // Laravel resource: { data: [...] }
-        fetchedRoutes = response.data;
-      } else if (response.routes && Array.isArray(response.routes)) {
-        // Custom wrapper: { routes: [...] }
-        fetchedRoutes = response.routes;
-      }
-      
-      
-      // Transform backend data to match frontend format
-      fetchedRoutes = fetchedRoutes.map(route => ({
-        ...route,
-        id: route.route_id || route.id, // Use route_id if available
-        estimatedDuration: route.estimated_duration || route.estimatedDuration,
-        createdAt: route.created_at || route.createdAt,
-        updatedAt: route.updated_at || route.updatedAt,
-      }));
-      // Routes fetched successfully
-      setRoutes(fetchedRoutes);
-      if (fetchedRoutes.length > 0 && !selectedRoute) {
-        setSelectedRoute(fetchedRoutes[0]);
-      }
+      const normalizedRoutes = extractRoutesFromResponse(response)
+        .map(normalizeRoute)
+        .filter((route) => route.waypoints.length > 0);
+
+      logRoutesPage('Routes loaded from API', normalizedRoutes.map((route) => ({
+        routeId: route.route_id,
+        name: route.name,
+        waypointCount: route.waypoints.length,
+      })));
+
+      setRoutes(normalizedRoutes);
+      setSelectedRoute((currentSelectedRoute) => normalizedRoutes.find((route) => route.id === currentSelectedRoute?.id) || normalizedRoutes[0] || null);
     } catch (error) {
-      console.error('Error loading routes:', error);
-      // Fallback to local data if API fails
-      setRoutes(routesData || []);
-      if (routesData && routesData.length > 0 && !selectedRoute) {
-        setSelectedRoute(routesData[0]);
-      }
+      console.error(`${ROUTES_PAGE_LOG_PREFIX} Error loading routes from API`, error);
+      const fallbackRoutes = routesData.map(normalizeRoute);
+      logRoutesPage('Using local fallback routes data', fallbackRoutes.map((route) => ({
+        routeId: route.route_id,
+        name: route.name,
+        waypointCount: route.waypoints.length,
+      })));
+      setRoutes(fallbackRoutes);
+      setSelectedRoute((currentSelectedRoute) => fallbackRoutes.find((route) => route.id === currentSelectedRoute?.id) || fallbackRoutes[0] || null);
     } finally {
       setLoadingRoutes(false);
     }
-  };
+  }, []);
 
-  // Load routes on component mount
   useEffect(() => {
     loadRoutes();
-  }, []);
-  
-  // Edit/Delete state
-  const [editingRoute, setEditingRoute] = useState(null);
-  const [deleteRouteData, setDeleteRouteData] = useState(null);
-  
-  // Trinidad, Bohol default center
-  const trinidadCenter = [10.0806, 124.3436];
-  
-  // Fetch OSRM routes for all routes on component mount
+  }, [loadRoutes]);
+
   useEffect(() => {
+    if (!routes.length) {
+      setRouteGeometries({});
+      return;
+    }
+
+    let isCancelled = false;
+
     const fetchAllRoutes = async () => {
-      setLoadingRoutes(true);
-      const geometries = {};
-      
-      for (const route of routes) {
-        const osrmRoute = await getOSRMRoute(route.waypoints);
-        if (osrmRoute) {
-          geometries[route.id] = {
-            coordinates: osrmRoute.coordinates,
-            distance: osrmRoute.distance,
-            duration: osrmRoute.duration
-          };
-        } else {
-          // Fallback to straight lines if OSRM fails
-          geometries[route.id] = {
-            coordinates: route.waypoints.map(wp => [wp.lat, wp.lng]),
-            distance: route.distance,
-            duration: route.estimatedDuration
-          };
+      setLoadingGeometries(true);
+      logRoutesPage('Calculating map geometries for routes', routes.map((route) => ({
+        routeId: route.route_id,
+        name: route.name,
+        waypointCount: route.waypoints.length,
+      })));
+
+      try {
+        const geometryEntries = await Promise.all(
+          routes.map(async (route) => {
+            const osrmRoute = await getOSRMRoute(route);
+            return [route.id, osrmRoute || buildFallbackGeometry(route)];
+          })
+        );
+
+        if (!isCancelled) {
+          setRouteGeometries(Object.fromEntries(geometryEntries));
+        }
+      } catch (error) {
+        console.error(`${ROUTES_PAGE_LOG_PREFIX} Error loading route geometries`, error);
+
+        if (!isCancelled) {
+          setRouteGeometries(Object.fromEntries(routes.map((route) => [route.id, buildFallbackGeometry(route)])));
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingGeometries(false);
         }
       }
-      
-      setRouteGeometries(geometries);
-      setLoadingRoutes(false);
     };
-    
+
     fetchAllRoutes();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [routes]);
-  
-  // Handle map click to add waypoint
-  const handleMapClick = (latlng) => {
+
+  const handleSelectRoute = useCallback((route, meta = {}) => {
+    if (!route) return;
+
+    logRoutesPage('Route clicked', {
+      routeId: route.route_id,
+      routeName: route.name,
+      source: meta.source || 'unknown',
+      waypointCount: route.waypoints.length,
+    });
+
+    setSelectedRoute(route);
+
+    if (meta.clearWaypoint !== false) {
+      setSelectedWaypoint(null);
+    }
+  }, []);
+
+  const handleSelectWaypoint = useCallback((payload) => {
+    if (!payload?.route || !payload?.waypoint) return;
+
+    setSelectedRoute(payload.route);
+    setSelectedWaypoint({
+      routeId: payload.route.id,
+      waypointId: payload.waypoint.id,
+      route: payload.route,
+      waypoint: payload.waypoint,
+    });
+  }, []);
+
+  const selectedRouteGeometry = selectedRoute ? routeGeometries[selectedRoute.id] : null;
+
+  const selectedRouteSummary = useMemo(() => {
+    if (!selectedRoute) return null;
+
+    const firstWaypoint = selectedRoute.waypoints[0] || null;
+    const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1] || null;
+
+    return {
+      firstWaypoint,
+      lastWaypoint,
+      distance: selectedRouteGeometry?.distance || selectedRoute.distance || 'N/A',
+      duration: selectedRouteGeometry?.duration || selectedRoute.estimatedDuration || 'N/A',
+      source: selectedRouteGeometry?.source || 'straight-line',
+    };
+  }, [selectedRoute, selectedRouteGeometry]);
+
+  const handleMapClick = useCallback((latlng) => {
     if (!isCreatingRoute) return;
-    
-    setWaypointForm({
-      ...waypointForm,
+
+    logRoutesPage('Map click received for new waypoint', latlng);
+
+    setWaypointForm((currentWaypointForm) => ({
+      ...currentWaypointForm,
       lat: latlng.lat,
       lng: latlng.lng,
-      type: newRouteWaypoints.length === 0 ? 'start' : 'pickup'
-    });
+      type: newRouteWaypoints.length === 0 ? 'start' : 'pickup',
+    }));
     setShowWaypointModal(true);
-  };
-
-  // Handle barangay change - reset purok and update available puroks
-  const handleBarangayChange = (e) => {
-    const selectedBarangay = e.target.value;
-    setWaypointForm({
-      ...waypointForm,
-      barangay: selectedBarangay,
-      purok: '' // Reset purok when barangay changes
-    });
-    setAvailablePuroks(generatePuroks(selectedBarangay));
-  };
+  }, [isCreatingRoute, newRouteWaypoints.length]);
   
   // Add waypoint to new route
   const handleAddWaypoint = (e) => {
@@ -298,7 +337,6 @@ const RoutesPage = () => {
       id: `WP-${Date.now()}`,
       name: waypointForm.name,
       barangay: waypointForm.barangay,
-      purok: waypointForm.purok,
       lat: waypointForm.lat,
       lng: waypointForm.lng,
       type: waypointForm.type,
@@ -307,15 +345,13 @@ const RoutesPage = () => {
     
     setNewRouteWaypoints([...newRouteWaypoints, newWaypoint]);
     setShowWaypointModal(false);
-    setWaypointForm({ name: '', barangay: '', purok: '', type: 'pickup', lat: 0, lng: 0 });
-    setAvailablePuroks([]);
+    setWaypointForm({ name: '', barangay: '', type: 'pickup', lat: 0, lng: 0 });
   };
   
   // Cancel waypoint modal
   const handleCancelWaypoint = () => {
     setShowWaypointModal(false);
-    setWaypointForm({ name: '', barangay: '', purok: '', type: 'pickup', lat: 0, lng: 0 });
-    setAvailablePuroks([]);
+    setWaypointForm({ name: '', barangay: '', type: 'pickup', lat: 0, lng: 0 });
   };
   
   // Start creating a route
@@ -348,7 +384,11 @@ const RoutesPage = () => {
     }));
     
     // Get OSRM route
-    const osrmRoute = await getOSRMRoute(updatedWaypoints);
+    const osrmRoute = await getOSRMRoute({
+      route_id: 'new-route-preview',
+      name: newRouteData.name || 'New route preview',
+      waypoints: updatedWaypoints,
+    });
     
     const routePayload = {
       name: newRouteData.name,
@@ -468,7 +508,7 @@ const RoutesPage = () => {
     return <Loading message="Loading routes..." />;
   }
 
-  // Permission check
+  // // Permission check
   // if (!hasPermission(currentUser, 'view_routes_module')) {
   //   return <AccessDenied message="You don't have permission to view Routes Management." />;
   // }
@@ -491,7 +531,7 @@ const RoutesPage = () => {
               className="block rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               style={{ minWidth: '160px' }}
             >
-              {mapStyles.map((style, index) => (
+              {MAP_STYLES.map((style, index) => (
                 <option key={index} value={index}>{style.name}</option>
               ))}
             </select>
@@ -522,125 +562,97 @@ const RoutesPage = () => {
       {/* Map and Routes List */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Map View */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <Card>
             <div className="p-4">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Route Map</h2>
-              <div style={{ height: '600px', borderRadius: '8px', overflow: 'hidden' }}>
-                <MapContainer
-                  center={trinidadCenter}
-                  zoom={13}
-                  style={{ height: '100%', width: '100%' }}
-                  key={selectedMapStyle} // Force re-render on style change
-                >
-                  <TileLayer
-                    attribution={mapStyles[selectedMapStyle].attribution}
-                    url={mapStyles[selectedMapStyle].url}
-                  />
-                  
-                  {/* Map click handler for creating routes - disabled when modal is open */}
-                  <MapClickHandler onMapClick={handleMapClick} isEnabled={isCreatingRoute && !showWaypointModal && !showCreateModal} />
-                  
-                  {/* Creating route indicator */}
-                  {isCreatingRoute && (
-                    <div className="absolute top-4 left-4 z-[1000] bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span className="font-medium">Click on map to add waypoints ({newRouteWaypoints.length} added)</span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Preview new route waypoints */}
-                  {isCreatingRoute && newRouteWaypoints.length > 0 && (
-                    <>
-                      {newRouteWaypoints.length > 1 && (
-                        <Polyline
-                          positions={newRouteWaypoints.map(wp => [wp.lat, wp.lng])}
-                          color={newRouteData.color}
-                          weight={4}
-                          dashArray="5, 10"
-                        />
-                      )}
-                      {newRouteWaypoints.map((waypoint, idx) => (
-                        <Marker
-                          key={waypoint.id}
-                          position={[waypoint.lat, waypoint.lng]}
-                          icon={createCustomIcon(newRouteData.color, waypoint.type, waypoint.order)}
-                        >
-                          <Popup>
-                            <div className="text-sm">
-                              <p className="font-semibold text-primary-600">New Stop #{waypoint.order}</p>
-                              <p className="font-semibold mt-1">{waypoint.name}</p>
-                              <p className="text-gray-600">{waypoint.barangay}</p>
-                              {waypoint.purok && <p className="text-gray-600 text-sm">{waypoint.purok}</p>}
-                            </div>
-                          </Popup>
-                        </Marker>
-                      ))}
-                    </>
-                  )}
-                  
-                  {/* Loading indicator */}
-                  {loadingRoutes && (
-                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-white px-4 py-2 rounded-lg shadow-lg">
-                      <div className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
-                        <span className="text-sm font-medium">Loading routes...</span>
-                      </div>
-                    </div>
-                  )}
+              <LeafletRoutesMap
+                routes={routes}
+                selectedRoute={selectedRoute}
+                selectedWaypoint={selectedWaypoint}
+                routeGeometries={routeGeometries}
+                selectedMapStyle={selectedMapStyle}
+                loadingGeometries={loadingGeometries}
+                isCreatingRoute={isCreatingRoute}
+                newRouteWaypoints={newRouteWaypoints}
+                newRouteColor={newRouteData.color}
+                showWaypointModal={showWaypointModal}
+                showCreateModal={showCreateModal}
+                onMapClick={handleMapClick}
+                onSelectRoute={handleSelectRoute}
+                onSelectWaypoint={handleSelectWaypoint}
+              />
+            </div>
+          </Card>
 
-                  {/* Render ONLY selected route */}
-                  {!loadingRoutes && selectedRoute && routeGeometries[selectedRoute.id] && (
-                    <React.Fragment key={selectedRoute.id}>
-                        {/* Route polyline following roads */}
-                        <Polyline
-                          positions={routeGeometries[selectedRoute.id].coordinates}
-                          color={selectedRoute.color}
-                          weight={5}
-                          opacity={1}
-                        />
-                        
-                        {/* Waypoint markers with numbers */}
-                        {Array.isArray(selectedRoute.waypoints) && selectedRoute.waypoints.map((waypoint, idx) => (
-                          <Marker
-                            key={waypoint.id}
-                            position={[waypoint.lat, waypoint.lng]}
-                            icon={createCustomIcon(selectedRoute.color, waypoint.type, waypoint.order)}
-                            opacity={1}
-                            zIndexOffset={waypoint.type === 'start' ? 1000 : waypoint.type === 'end' ? 999 : 100}
-                          >
-                            <Popup>
-                              <div className="text-sm">
-                                <p className="font-semibold text-primary-600">Stop #{waypoint.order}</p>
-                                <p className="font-semibold mt-1">{waypoint.name}</p>
-                                <p className="text-gray-600">{waypoint.barangay}</p>
-                                {waypoint.purok && <p className="text-gray-600 text-sm">{waypoint.purok}</p>}
-                                <div className="mt-2 flex items-center gap-2">
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    waypoint.type === 'start' ? 'bg-green-100 text-green-800' :
-                                    waypoint.type === 'end' ? 'bg-red-100 text-red-800' :
-                                    'bg-blue-100 text-blue-800'
-                                  }`}>
-                                    {waypoint.type === 'start' ? '🚩 Start' : 
-                                     waypoint.type === 'end' ? '🏁 End' : '📍 Pickup'}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-2">
-                                  Lat: {waypoint.lat.toFixed(4)}, Lng: {waypoint.lng.toFixed(4)}
-                                </p>
-                              </div>
-                            </Popup>
-                          </Marker>
-                        ))}
-                       </React.Fragment>
-                  )}
-                </MapContainer>
+          <Card>
+            <div className="p-4 space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Selected Route Details</h2>
+                  <p className="text-sm text-gray-600">Click a route line or marker to inspect its road-following geometry and waypoint details.</p>
+                </div>
+                {selectedRouteSummary && (
+                  <Badge variant={selectedRouteSummary.source === 'osrm' ? 'success' : 'secondary'}>
+                    {selectedRouteSummary.source === 'osrm' ? 'Road-following route' : 'Fallback line'}
+                  </Badge>
+                )}
               </div>
+
+              {selectedRoute ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Route</p>
+                      <p className="mt-1 font-semibold text-gray-900">{selectedRoute.name}</p>
+                      <p className="text-sm text-gray-600">ID: {selectedRoute.route_id}</p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Distance</p>
+                      <p className="mt-1 font-semibold text-gray-900">{selectedRouteSummary?.distance}</p>
+                      <p className="text-sm text-gray-600">Duration: {selectedRouteSummary?.duration}</p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Origin</p>
+                      <p className="mt-1 font-semibold text-gray-900">{selectedRouteSummary?.firstWaypoint?.name || 'N/A'}</p>
+                      <p className="text-sm text-gray-600">{selectedRouteSummary?.firstWaypoint?.barangay || 'No barangay set'}</p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Destination</p>
+                      <p className="mt-1 font-semibold text-gray-900">{selectedRouteSummary?.lastWaypoint?.name || 'N/A'}</p>
+                      <p className="text-sm text-gray-600">{selectedRouteSummary?.lastWaypoint?.barangay || 'No barangay set'}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 p-4 bg-white">
+                    <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Route Description</h3>
+                        <p className="text-sm text-gray-600">{selectedRoute.description}</p>
+                      </div>
+                      <Badge variant={selectedRoute.status === 'active' ? 'success' : 'secondary'} size="sm">
+                        {selectedRoute.status}
+                      </Badge>
+                    </div>
+
+                    {selectedWaypoint?.routeId === selectedRoute.id && selectedWaypoint?.waypoint && (
+                      <div className="rounded-lg border border-primary-200 bg-primary-50 p-4">
+                        <p className="text-xs uppercase tracking-wide text-primary-700">Selected Marker</p>
+                        <p className="mt-1 font-semibold text-primary-900">{selectedWaypoint.waypoint.name}</p>
+                        <p className="text-sm text-primary-800">Stop #{selectedWaypoint.waypoint.order} • {selectedWaypoint.waypoint.type}</p>
+                        <p className="text-sm text-primary-800">{selectedWaypoint.waypoint.barangay || 'No barangay set'}</p>
+                        <p className="text-xs text-primary-700 mt-1">
+                          Lat: {Number(selectedWaypoint.waypoint.lat).toFixed(5)}, Lng: {Number(selectedWaypoint.waypoint.lng).toFixed(5)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-gray-500">
+                  Select a route from the map or the list to inspect its details.
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -659,7 +671,7 @@ const RoutesPage = () => {
                         ? 'border-primary-500 bg-primary-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
-                    onClick={() => setSelectedRoute(selectedRoute?.id === route.id ? null : route)}
+                    onClick={() => handleSelectRoute(route, { source: 'list' })}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -682,10 +694,10 @@ const RoutesPage = () => {
                       <span>⏱️ {routeGeometries[route.id]?.duration || route.estimatedDuration}</span>
                     </div>
                     
-                    {loadingRoutes && (
+                    {loadingGeometries && (
                       <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-600"></div>
-                        <span>Calculating route...</span>
+                        <span>Calculating road-following route...</span>
                       </div>
                     )}
                     
@@ -695,8 +707,7 @@ const RoutesPage = () => {
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setViewRoute(route);
-                          setShowViewModal(true);
+                          handleSelectRoute(route, { source: 'view-button' });
                         }}
                       >
                         View
@@ -747,7 +758,7 @@ const RoutesPage = () => {
           {/* Mini Map Preview */}
           <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '250px' }}>
             <MapContainer
-              center={[waypointForm.lat, waypointForm.lng]}
+              center={waypointForm.lat && waypointForm.lng ? [waypointForm.lat, waypointForm.lng] : ROUTES_MAP_DEFAULT_CENTER}
               zoom={15}
               style={{ height: '100%', width: '100%' }}
               dragging={false}
@@ -757,8 +768,8 @@ const RoutesPage = () => {
               touchZoom={false}
             >
               <TileLayer
-                attribution={mapStyles[selectedMapStyle].attribution}
-                url={mapStyles[selectedMapStyle].url}
+                attribution={(MAP_STYLES[selectedMapStyle] || MAP_STYLES[0]).attribution}
+                url={(MAP_STYLES[selectedMapStyle] || MAP_STYLES[0]).url}
               />
               <Marker position={[waypointForm.lat, waypointForm.lng]}>
                 <Popup>
@@ -791,41 +802,13 @@ const RoutesPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Barangay *
             </label>
-            <select
+            <Input
+              type="text"
+              placeholder="e.g., Poblacion, Caigangan"
               value={waypointForm.barangay}
-              onChange={handleBarangayChange}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              onChange={(e) => setWaypointForm({ ...waypointForm, barangay: e.target.value })}
               required
-            >
-              <option value="">Select a barangay...</option>
-              {barangays.map((barangay) => (
-                <option key={barangay} value={barangay}>
-                  {barangay}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Purok *
-            </label>
-            <select
-              value={waypointForm.purok}
-              onChange={(e) => setWaypointForm({ ...waypointForm, purok: e.target.value })}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              disabled={!waypointForm.barangay}
-              required
-            >
-              <option value="">
-                {waypointForm.barangay ? 'Select a purok...' : 'Select barangay first...'}
-              </option>
-              {availablePuroks.map((purok) => (
-                <option key={purok} value={purok}>
-                  {purok}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div>

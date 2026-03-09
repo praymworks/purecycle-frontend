@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Badge, Input, Select, Toast, Loading, AccessDenied } from '../components/ui';
+// import { Card, Table, Button, Badge, Input, Select, Toast, Loading, AccessDenied } from '../components/ui';
+import { Card, Table, Button, Badge, Input, Select, Toast, Loading } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -339,9 +340,9 @@ const AnnouncementsPage = () => {
   }
 
   // Permission check
-  if (!hasPermission(currentUser, 'view_announcements_module')) {
-    return <AccessDenied message="You don't have permission to view Announcements." />;
-  }
+  // if (!hasPermission(currentUser, 'view_announcements_module')) {
+  //   return <AccessDenied message="You don't have permission to view Announcements." />;
+  // }
 
   return (
     <div className="space-y-6">

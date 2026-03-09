@@ -78,10 +78,13 @@ const NotificationsPage = () => {
   useEffect(() => {
     fetchNotifications();
     fetchStats();
+    
   }, [filter, typeFilter, searchQuery]);
 
   // Mark notification as read
   const markAsRead = async (id) => {
+   
+    
     try {
       const response = await api.notifications.markAsRead(id);
       if (response.success) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+// import { Card, Button, Badge, Select, Input, Toast, Loading, AccessDenied } from '../components/ui';
 import { Card, Button, Badge, Select, Input, Toast, Loading, AccessDenied } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
 import api from '../services/api';
@@ -10,6 +11,7 @@ const SchedulesPage = () => {
   const [schedules, setSchedules] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [selectedDay, setSelectedDay] = useState('Monday');
+  const [selectedTruck, setSelectedTruck] = useState('White Garbage Truck'); // Truck filter for route display
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, 1 = next week, -1 = previous week
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -25,6 +27,17 @@ const SchedulesPage = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loadingSchedules, setLoadingSchedules] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', variant: 'success' });
+  const [selectedScheduleIds, setSelectedScheduleIds] = useState([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [visibleDays, setVisibleDays] = useState({
+    Monday: true,
+    Tuesday: true,
+    Wednesday: true,
+    Thursday: true,
+    Friday: true,
+    Saturday: true
+  });
   // Load schedules from backend API
   const loadSchedules = async () => {
     try {
@@ -72,6 +85,7 @@ const SchedulesPage = () => {
           dbDay: schedule.day,  // Keep original for reference
           date: dateOnly,  // Use properly extracted date (YYYY-MM-DD only)
           status: schedule.status,
+          garbageTruck: schedule.garbage_truck || null,
           route: schedule.stops || [], // 'stops' from API = 'route' in frontend
           routeId: schedule.route_id,
           routeName: schedule.route?.name || '',
@@ -143,17 +157,19 @@ const SchedulesPage = () => {
     scheduleType: 'specific', // 'specific', 'week', 'month'
     routeMode: 'same', // 'same' or 'different'
     routeId: '',
+    garbageTruck: '',
     dayRoutes: {
       Monday: '',
       Tuesday: '',
       Wednesday: '',
       Thursday: '',
-      Friday: ''
+      Friday: '',
+      Saturday: ''
     },
     startDate: '',
     endDate: '',
     specificDates: [],
-    daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     startTime: '06:00'
   });
   const [showEditModal, setShowEditModal] = useState(false);
@@ -166,8 +182,8 @@ const SchedulesPage = () => {
 
   // Get current week with all days (Mon-Sat)
   const getCurrentWeekDays = () => {
-    // Use March 6, 2026 as the reference date (Friday of the current week)
-    const now = new Date('2026-03-06');
+    // Use actual current date instead of hardcoded date
+    const now = new Date();
     const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     // Get Monday of current week
@@ -200,16 +216,16 @@ const SchedulesPage = () => {
       const monthName = monthNames[date.getMonth()];
       const formattedDate = `${monthName} ${dayOfMonth}, ${year}`;
       
-      // Find schedule for this day (match by DATE only, ignore day name from DB)
-      const schedule = schedules.find(s => s.date === dateString);
+      // Find ALL schedules for this day (match by DATE only, ignore day name from DB)
+      const daySchedules = schedules.filter(s => s.date === dateString);
       
-      // console.log(`🔍 Day ${dayNames[i]} (${dateString}): ${schedule ? 'Found: ' + schedule.scheduleId : 'Not found'} Looking in:`, schedules.map(s => s.date));
+      // console.log(`🔍 Day ${dayNames[i]} (${dateString}): ${daySchedules.length} schedules found`);
       
       weekDays.push({
         day: dayNames[i],
         date: dateString,
         formattedDate: formattedDate,
-        schedule: schedule || null
+        schedules: daySchedules // Changed from 'schedule' to 'schedules' (array)
       });
     }
     
@@ -221,16 +237,19 @@ const SchedulesPage = () => {
   // console.log(currentWeekDays);
   
   
-  // Get current schedule for selected day FROM CURRENT WEEK ONLY (match by date)
+  // Get current schedule for selected day FROM CURRENT WEEK ONLY (match by date and truck)
   const currentSchedule = useMemo(() => {
     const selectedDayInfo = currentWeekDays.find(d => d.day === selectedDay);
     if (!selectedDayInfo) return null;
     
-    // Find schedule that matches the DATE of the selected day in current week
-    const matchedSchedule = schedules.find(s => s.date === selectedDayInfo.date);
+    // Find schedule that matches the DATE of the selected day AND the selected truck
+    const matchedSchedule = schedules.find(s => 
+      s.date === selectedDayInfo.date && 
+      s.garbageTruck === selectedTruck
+    );
     
     return matchedSchedule || null;
-  }, [schedules, selectedDay, currentWeekDays]);
+  }, [schedules, selectedDay, selectedTruck, currentWeekDays]);
 
   // console.log(currentSchedule);
   
@@ -488,6 +507,104 @@ const SchedulesPage = () => {
     return selectedDateTime > now;
   };
 
+  // Handle checkbox selection for bulk delete
+  const handleScheduleSelect = (scheduleId) => {
+    setSelectedScheduleIds(prev => {
+      if (prev.includes(scheduleId)) {
+        return prev.filter(id => id !== scheduleId);
+      } else {
+        return [...prev, scheduleId];
+      }
+    });
+  };
+
+  // Handle select all schedules in current calendar view
+  const handleSelectAll = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    const currentMonthScheduleIds = [];
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const currentDate = new Date(year, month, day);
+      const dateYear = currentDate.getFullYear();
+      const dateMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const dateDay = String(currentDate.getDate()).padStart(2, '0');
+      const dateString = `${dateYear}-${dateMonth}-${dateDay}`;
+      
+      const daySchedules = schedules.filter(s => s.date === dateString);
+      daySchedules.forEach(schedule => currentMonthScheduleIds.push(schedule.id));
+    }
+    
+    if (selectedScheduleIds.length === currentMonthScheduleIds.length && currentMonthScheduleIds.length > 0) {
+      setSelectedScheduleIds([]);
+    } else {
+      setSelectedScheduleIds(currentMonthScheduleIds);
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    try {
+      setIsDeletingBulk(true);
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (const scheduleId of selectedScheduleIds) {
+        try {
+          const response = await api.schedules.delete(scheduleId);
+          if (response.success) {
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        } catch (error) {
+          console.error(`Error deleting schedule ${scheduleId}:`, error);
+          failedCount++;
+        }
+      }
+
+      // Refresh schedules
+      await loadSchedules();
+
+      // Clear selection
+      setSelectedScheduleIds([]);
+
+      // Show result message
+      if (successCount > 0 && failedCount === 0) {
+        setToast({ 
+          show: true, 
+          message: `${successCount} schedule(s) deleted successfully`, 
+          variant: 'success' 
+        });
+      } else if (successCount > 0 && failedCount > 0) {
+        setToast({ 
+          show: true, 
+          message: `${successCount} deleted, ${failedCount} failed`, 
+          variant: 'warning' 
+        });
+      } else {
+        setToast({ 
+          show: true, 
+          message: 'Failed to delete schedules', 
+          variant: 'error' 
+        });
+      }
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      setToast({ 
+        show: true, 
+        message: 'Failed to delete schedules', 
+        variant: 'error' 
+      });
+    } finally {
+      setIsDeletingBulk(false);
+      setShowBulkDeleteModal(false);
+    }
+  };
+
   // Handle bulk create schedules
   const handleBulkCreate = async (e) => {
     e.preventDefault();
@@ -554,6 +671,7 @@ const SchedulesPage = () => {
         
         schedulesToCreate.push({
           route_id: getDbRouteId(routeId),  // Convert "ROUTE-001" to 1
+          garbage_truck: bulkCreateData.garbageTruck,
           day: dayOfWeek,
           date: dateStr,
           start_time: bulkCreateData.startTime + ':00',
@@ -587,6 +705,7 @@ const SchedulesPage = () => {
         
         schedulesToCreate.push({
           route_id: getDbRouteId(routeId),  // Convert "ROUTE-001" to 1
+          garbage_truck: bulkCreateData.garbageTruck,
           day: dayName,
           date: scheduleDate.toISOString().split('T')[0],
           start_time: bulkCreateData.startTime + ':00',
@@ -616,6 +735,7 @@ const SchedulesPage = () => {
             
             schedulesToCreate.push({
               route_id: getDbRouteId(routeId),  // Convert "ROUTE-001" to 1
+              garbage_truck: bulkCreateData.garbageTruck,
               day: dayOfWeek,
               date: currentDate.toISOString().split('T')[0],
               start_time: bulkCreateData.startTime + ':00',
@@ -702,17 +822,19 @@ const SchedulesPage = () => {
       scheduleType: 'specific',
       routeMode: 'same',
       routeId: '',
+      garbageTruck: '',
       dayRoutes: {
         Monday: '',
         Tuesday: '',
         Wednesday: '',
         Thursday: '',
-        Friday: ''
+        Friday: '',
+        Saturday: ''
       },
       startDate: '',
       endDate: '',
       specificDates: [],
-      daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
       startTime: '06:00'
     });
   };
@@ -723,19 +845,19 @@ const SchedulesPage = () => {
   }
 
   // Permission check
-  if (!hasPermission(currentUser, 'view_schedules_module')) {
-    return <AccessDenied message="You don't have permission to view Schedules." />;
-  }
+  // if (!hasPermission(currentUser, 'view_schedules_module')) {
+  //   return <AccessDenied message="You don't have permission to view Schedules." />;
+  // }
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Collection Schedules</h1>
-          <p className="text-gray-600 mt-1">View and manage waste collection schedules and routes</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Collection Schedules</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1">View and manage waste collection schedules and routes</p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
           {/* View Mode Toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
@@ -794,10 +916,41 @@ const SchedulesPage = () => {
           <div className="p-6">
             {/* Calendar Header with Month Navigation */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">
-                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h2>
+                {selectedScheduleIds.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">
+                      {selectedScheduleIds.length} selected
+                    </span>
+                    <Button
+                      onClick={() => setShowBulkDeleteModal(true)}
+                      variant="danger"
+                      className="text-sm"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete Selected
+                    </Button>
+                    <button
+                      onClick={() => setSelectedScheduleIds([])}
+                      className="text-sm text-gray-600 hover:text-gray-900"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSelectAll}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded border border-gray-300"
+                >
+                  {selectedScheduleIds.length > 0 ? 'Deselect All' : 'Select All'}
+                </button>
                 <button
                   onClick={() => {
                     const newMonth = new Date(currentMonth);
@@ -886,24 +1039,46 @@ const SchedulesPage = () => {
                             <div
                               key={schedule.id}
                               className={`text-xs p-1.5 rounded cursor-pointer truncate relative group ${
+                                selectedScheduleIds.includes(schedule.id) ? 'ring-2 ring-red-500' : ''
+                              } ${
                                 schedule.status === 'active' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' :
                                 schedule.status === 'completed' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
                                 schedule.status === 'cancelled' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
                                 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                               }`}
                             >
-                              <div 
-                                onClick={() => {
-                                  setViewingSchedule(schedule);
-                                  setShowScheduleDetailsModal(true);
-                                }}
-                                className="flex-1"
-                              >
-                                <div className="font-medium">{schedule.day}</div>
-                                <div className="text-[10px]">{schedule.date}</div>
-                                {schedule.status === 'cancelled' && (
-                                  <div className="text-[10px]">Cancelled</div>
-                                )}
+                              <div className="flex items-start gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedScheduleIds.includes(schedule.id)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleScheduleSelect(schedule.id);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="mt-0.5 cursor-pointer"
+                                />
+                                <div 
+                                  onClick={() => {
+                                    setViewingSchedule(schedule);
+                                    setShowScheduleDetailsModal(true);
+                                  }}
+                                  className="flex-1"
+                                >
+                                  <div className="font-medium">{schedule.day}</div>
+                                  <div className="text-[10px]">{schedule.date}</div>
+                                  {schedule.garbageTruck && (
+                                    <div className="flex items-center gap-0.5 text-[10px] mt-0.5">
+                                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                      </svg>
+                                      <span>{schedule.garbageTruck}</span>
+                                    </div>
+                                  )}
+                                  {schedule.status === 'cancelled' && (
+                                    <div className="text-[10px]">Cancelled</div>
+                                  )}
+                                </div>
                               </div>
                               <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
@@ -964,25 +1139,52 @@ const SchedulesPage = () => {
         <>
       {/* Weekly Overview */}
       <Card>
-        <div className="p-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Weekly Overview</h3>
-            <p className="text-xs text-gray-600">Collection schedule for the entire week</p>
+        <div className="p-4 md:p-6">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Weekly Overview</h3>
+              <p className="text-xs text-gray-600">Collection schedule for the entire week</p>
+            </div>
+            
+            {/* Day Filter Checkboxes */}
+            <div className="flex flex-wrap gap-2">
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
+                <label key={day} className="flex items-center gap-1 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={visibleDays[day]}
+                    onChange={(e) => setVisibleDays({ ...visibleDays, [day]: e.target.checked })}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-gray-700">{day.substring(0, 3)}</span>
+                </label>
+              ))}
+            </div>
           </div>
-          <div className="overflow-x-auto pb-2" >
-            <div className="flex gap-3">
-          {currentWeekDays.map((dayInfo) => (
+          
+          <div className="overflow-x-auto overflow-y-visible pb-2 -mx-4 md:-mx-6 px-4 md:px-6">
+            {currentWeekDays.filter(dayInfo => visibleDays[dayInfo.day]).length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-lg font-medium">No days selected</p>
+                <p className="text-sm mt-1">Please select at least one day to view schedules</p>
+              </div>
+            ) : (
+            <div className="flex gap-3 w-max min-w-full">
+          {currentWeekDays.filter(dayInfo => visibleDays[dayInfo.day]).map((dayInfo) => (
             <div
               key={dayInfo.day}
               className={`
-               px-4 py-3 border-2 rounded-lg transition-all
+                px-3 py-2.5 md:px-4 md:py-3 border-2 rounded-lg transition-all cursor-pointer
                 flex-shrink-0
-                h-[140px]
-                w-full sm:w-[215px]
+                min-h-[120px] md:min-h-[140px]
+                w-[180px] sm:w-[200px] md:w-[215px]
 
                 ${selectedDay === dayInfo.day
                   ? 'border-primary-500 bg-primary-50'
-                  : dayInfo.schedule 
+                  : dayInfo.schedules?.length > 0
                     ? 'border-gray-200 hover:border-primary-300 bg-white'
                     : 'border-gray-200 bg-gray-50'
                 }
@@ -1000,86 +1202,103 @@ const SchedulesPage = () => {
                     {dayInfo.formattedDate}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {dayInfo.schedule ? (
-                    <>
-                      {/* Status Icon */}
-                      {dayInfo.schedule.status === 'active' && (
-                        <div className="p-1 bg-blue-100 rounded" title="Active">
-                          <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                      {dayInfo.schedule.status === 'completed' && (
-                        <div className="p-1 bg-green-100 rounded" title="Completed">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                      {dayInfo.schedule.status === 'cancelled' && (
-                        <div className="p-1 bg-red-100 rounded" title="Cancelled">
-                          <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                      {dayInfo.schedule.status === 'pending' && (
-                        <div className="p-1 bg-yellow-100 rounded" title="Pending">
-                          <svg className="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                      
-                      {/* Action Buttons */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenStatusModal(dayInfo.schedule);
-                        }}
-                        className="p-1 hover:bg-blue-50 rounded transition-colors"
-                        title="Update status"
-                      >
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditSchedule(dayInfo.schedule);
-                        }}
-                        className="p-1 hover:bg-gray-100 rounded transition-colors"
-                        title="Edit schedule"
-                      >
-                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                    </>
-                  ) : null}
-                </div>
               </div>
               
-              {dayInfo.schedule ? (
-                <>
-                  <div className="mt-2">
-                    <div className="text-sm font-medium text-gray-900 mb-1">
-                      {dayInfo.schedule.routeName || 'Collection Route'}
+              {dayInfo.schedules?.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {dayInfo.schedules.map((schedule, idx) => (
+                    <div 
+                      key={schedule.id}
+                      className={`p-2 rounded border ${
+                        idx === 0 ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {schedule.routeName || 'Collection Route'}
+                          </div>
+                          {schedule.status === 'cancelled' && schedule.cancelReason ? (
+                            <div className="text-xs text-red-700 truncate mt-0.5">
+                              ⚠️ {schedule.cancelReason}
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-xs text-gray-600 mt-0.5">
+                                {(schedule.stops?.length || 0)} stops
+                              </div>
+                              {schedule.garbageTruck && (
+                                <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-700">
+                                  <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                  </svg>
+                                  <span className="font-medium">{schedule.garbageTruck}</span>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {/* Status Icon */}
+                          {schedule.status === 'active' && (
+                            <div className="p-0.5 bg-blue-100 rounded" title="Active">
+                              <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                          {schedule.status === 'completed' && (
+                            <div className="p-0.5 bg-green-100 rounded" title="Completed">
+                              <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                          {schedule.status === 'cancelled' && (
+                            <div className="p-0.5 bg-red-100 rounded" title="Cancelled">
+                              <svg className="w-3 h-3 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                          {schedule.status === 'pending' && (
+                            <div className="p-0.5 bg-yellow-100 rounded" title="Pending">
+                              <svg className="w-3 h-3 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                          
+                          {/* Action Buttons */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenStatusModal(schedule);
+                            }}
+                            className="p-0.5 hover:bg-blue-50 rounded transition-colors"
+                            title="Update status"
+                          >
+                            <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditSchedule(schedule);
+                            }}
+                            className="p-0.5 hover:bg-gray-100 rounded transition-colors"
+                            title="Edit schedule"
+                          >
+                            <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    {dayInfo.schedule.status === 'cancelled' && dayInfo.schedule.cancelReason ? (
-                      <div className="p-1 bg-red-50 border border-red-200 rounded text-xs text-red-700 truncate">
-                        ⚠️ {dayInfo.schedule.cancelReason}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-gray-600">
-                        {(dayInfo.schedule.stops?.length || 0)} stops scheduled
-                      </div>
-                    )}
-                  </div>
-                </>
+                  ))}
+                </div>
               ) : (
                 <div className="mt-2 text-sm text-gray-500 italic">
                   No collection scheduled
@@ -1088,29 +1307,68 @@ const SchedulesPage = () => {
             </div>
           ))}
             </div>
+            )}
           </div>
         </div>
       </Card>
 
       {/* Current Day Info */}
       <Card>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-bold text-gray-900">{selectedDay} Route</h2>
             <p className="text-sm text-gray-600 mt-1">Collection route for {selectedDay}</p>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-purple-100 rounded-lg">
-              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-              <span className="text-sm font-medium text-purple-900">Start</span>
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* Truck Filter Tabs */}
+            <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+              <button
+                onClick={() => setSelectedTruck('White Garbage Truck')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  selectedTruck === 'White Garbage Truck'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  <span>White Truck</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setSelectedTruck('Red Garbage Truck')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  selectedTruck === 'Red Garbage Truck'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  <span>Red Truck</span>
+                </div>
+              </button>
             </div>
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-yellow-100 rounded-lg">
-              <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-              <span className="text-sm font-medium text-yellow-900">Ongoing</span>
-            </div>
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-red-100 rounded-lg">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-sm font-medium text-red-900">Finish</span>
+
+            {/* Legend */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-2 px-3 py-1.5 bg-purple-100 rounded-lg">
+                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-purple-900">Start</span>
+              </div>
+              <div className="flex items-center space-x-2 px-3 py-1.5 bg-yellow-100 rounded-lg">
+                <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-yellow-900">Ongoing</span>
+              </div>
+              <div className="flex items-center space-x-2 px-3 py-1.5 bg-red-100 rounded-lg">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-red-900">Finish</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1188,9 +1446,14 @@ const SchedulesPage = () => {
         {!currentSchedule && (
           <div className="text-center py-12">
             <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
             </svg>
-            <p className="text-gray-600">No schedule available for {selectedDay}</p>
+            <p className="text-lg font-medium text-gray-900 mb-2">
+              No {selectedTruck} route for {selectedDay}
+            </p>
+            <p className="text-sm text-gray-500">
+              Try switching to the other truck or select a different day
+            </p>
           </div>
         )}
       </Card>
@@ -1476,7 +1739,7 @@ const SchedulesPage = () => {
                 required
               >
                 <option value="">Choose a route...</option>
-                {routesData.map((route) => (
+                {routes.map((route) => (
                   <option key={route.id} value={route.id}>
                     {route.name} ({route.waypoints.length} waypoints - {route.distance})
                   </option>
@@ -1759,6 +2022,23 @@ const SchedulesPage = () => {
             </div>
           </div>
 
+          {/* Garbage Truck Selection */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Garbage Truck <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={bulkCreateData.garbageTruck}
+              onChange={(e) => setBulkCreateData({ ...bulkCreateData, garbageTruck: e.target.value })}
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              required
+            >
+              <option value="">Select a truck...</option>
+              <option value="White Garbage Truck">White Garbage Truck</option>
+              <option value="Red Garbage Truck">Red Garbage Truck</option>
+            </select>
+          </div>
+
           {/* Route Mode Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1925,7 +2205,7 @@ const SchedulesPage = () => {
                   Days of Week *
                 </label>
                 <div className="grid grid-cols-5 gap-2">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => (
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
                     <button
                       key={day}
                       type="button"
@@ -1989,7 +2269,7 @@ const SchedulesPage = () => {
                   Days of Week *
                 </label>
                 <div className="grid grid-cols-5 gap-2">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => (
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
                     <button
                       key={day}
                       type="button"
@@ -2063,6 +2343,19 @@ const SchedulesPage = () => {
         </div>
       </FormModal>
 
+      {/* Bulk Delete Confirmation Modal */}
+      <AlertModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        title="Delete Selected Schedules"
+        message={`Are you sure you want to delete ${selectedScheduleIds.length} selected schedule(s)? This action cannot be undone.`}
+        confirmText={isDeletingBulk ? "Deleting..." : "Delete"}
+        cancelText="Cancel"
+        variant="danger"
+        disabled={isDeletingBulk}
+      />
+
       {/* Toast Notifications */}
       <Toast
         show={toast.show}
@@ -2075,3 +2368,4 @@ const SchedulesPage = () => {
 };
 
 export default SchedulesPage;
+

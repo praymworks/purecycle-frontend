@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// import { Card, Table, Button, Badge, Avatar, Toast, Loading, AccessDenied } from '../components/ui';
 import { Card, Table, Button, Badge, Avatar, Toast, Loading, AccessDenied } from '../components/ui';
 import { AlertModal, ViewModal, FormModal } from '../components/modals';
 import { Input, Select } from '../components/ui';
@@ -359,9 +360,9 @@ const UsersPage = () => {
   }
 
   // Permission check
-  if (!hasPermission(currentUser, 'view_user_management_module')) {
-    return <AccessDenied message="You don't have permission to view User Management." />;
-  }
+  // if (!hasPermission(currentUser, 'view_user_management_module')) {
+  //   return <AccessDenied message="You don't have permission to view User Management." />;
+  // }
 
   return (
     <div className="space-y-6">

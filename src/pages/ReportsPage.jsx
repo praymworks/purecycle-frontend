@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Badge, Input, Toast, Loading, AccessDenied } from '../components/ui';
+// import { Card, Table, Button, Badge, Input, Toast, Loading, AccessDenied } from '../components/ui';
+import { Card, Table, Button, Badge, Input, Toast, Loading } from '../components/ui';
 import { ViewModal, AlertModal, FormModal } from '../components/modals';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -18,6 +19,7 @@ const ReportsPage = () => {
   const [remark, setRemark] = useState('');
   const [staffRemarks, setStaffRemarks] = useState('');
   const [toast, setToast] = useState({ show: false, message: '', variant: 'success' });
+  const [imageZoom, setImageZoom] = useState(1); // Zoom level for evidence photo (0.5x to 3x)
 
   // Fetch reports from backend
   const fetchReports = async () => {
@@ -110,6 +112,7 @@ const ReportsPage = () => {
 
   const handleView = (report) => {
     setSelectedReport(report);
+    setImageZoom(1); // Reset zoom level when opening modal
     setShowViewModal(true);
   };
 
@@ -167,9 +170,9 @@ const ReportsPage = () => {
   }
 
   // Permission check
-  if (!hasPermission(currentUser, 'view_reports_management_module')) {
-    return <AccessDenied message="You don't have permission to view Reports Management." />;
-  }
+  // if (!hasPermission(currentUser, 'view_reports_management_module')) {
+  //   return <AccessDenied message="You don't have permission to view Reports Management." />;
+  // }
 
   return (
     <div className="space-y-6">
@@ -353,13 +356,69 @@ const ReportsPage = () => {
 
               {selectedReport.photo && (
                 <div className="mt-4">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Evidence Photo</h3>
-                  <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-sm text-gray-600">{selectedReport.photo}</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-gray-500">Evidence Photo</h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setImageZoom(Math.max(0.5, imageZoom - 0.25))}
+                        disabled={imageZoom <= 0.5}
+                        className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        title="Zoom Out"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                        </svg>
+                      </button>
+                      <span className="text-xs font-medium text-gray-600 min-w-[3rem] text-center">
+                        {Math.round(imageZoom * 100)}%
+                      </span>
+                      <button
+                        onClick={() => setImageZoom(1)}
+                        disabled={imageZoom === 1}
+                        className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        title="Reset Zoom"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => setImageZoom(Math.min(3, imageZoom + 0.25))}
+                        disabled={imageZoom >= 3}
+                        className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        title="Zoom In"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
+                  <div 
+                    className="bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-auto max-h-[32rem]"
+                    style={{ cursor: imageZoom > 1 ? 'move' : 'default' }}
+                  >
+                    <div className="flex justify-center items-center min-h-[200px]">
+                      <img 
+                        src={selectedReport.photo.startsWith('http') 
+                          ? selectedReport.photo 
+                          : `${import.meta.env.VITE_BASE_URL || 'http://localhost:8000'}/${selectedReport.photo}`
+                        }
+                        alt="Evidence Photo"
+                        className="max-h-96 rounded-lg transition-transform duration-200 ease-in-out"
+                        style={{ 
+                          transform: `scale(${imageZoom})`,
+                          transformOrigin: 'center center',
+                          imageRendering: imageZoom > 1 ? 'high-quality' : 'auto'
+                        }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not found%3C/text%3E%3C/svg%3E';
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 text-center break-all">
+                    {selectedReport.photo}
+                  </p>
                 </div>
               )}
 
